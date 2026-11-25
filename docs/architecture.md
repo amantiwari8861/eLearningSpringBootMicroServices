@@ -1,6 +1,6 @@
 # Runtime architecture and HTTP surface
 
-The Maven reactor builds seven Spring Boot applications. The registry and gateway provide infrastructure. Auth, course, order, notification and AI each have a Spring application entry point. Their production Java sources currently contain no business controllers, DTOs, JPA entities, MongoDB documents, repositories, message producers or consumers. The database design in this directory describes a larger LMS than the Java applications currently implement. [Reactor POM](../pom.xml) · [Database design](attribute-guide.md)
+The Maven reactor builds seven Spring Boot applications. The registry and gateway provide infrastructure. Auth now implements registration, current-user lookup, BCrypt password hashing and HTTP Basic authentication. The gateway validates Basic credentials with auth-service and forwards signed-in identity headers to downstream services. Course, order, notification and AI still have application entry points and persistence dependencies without business handlers. The database design in this directory describes a larger LMS than the Java applications currently implement. [Reactor POM](../pom.xml) · [Database design](attribute-guide.md)
 
 ## Request and discovery paths
 
@@ -30,9 +30,9 @@ The solid links show configured HTTP routes and database integrations. Dotted li
 | Module | Default port | What the source or packaged dependencies establish |
 | --- | ---: | --- |
 | [eureka-server](../eureka-server/pom.xml) | 8761 | `@EnableEurekaServer` activates the Eureka registry and dashboard. This module inherits directly from the Boot parent and imports the Cloud BOM itself. |
-| [api-gateway](../api-gateway/pom.xml) | 8080 | Reactive Spring Cloud Gateway Server WebFlux, Eureka client and load balancing. Four explicit routes. Automatic discovery routes are disabled. |
+| [api-gateway](../api-gateway/pom.xml) | 8080 | Reactive Spring Cloud Gateway Server WebFlux, Eureka client and load balancing. Four explicit routes. A global filter validates Basic credentials with auth-service and injects `X-User-Id`, `X-User-Email` and `X-User-Roles` after removing client-supplied values. Automatic discovery routes are disabled. |
 | [ai-service](../ai-service/pom.xml) | 8081 | Servlet MVC application and Eureka client. Its properties reference PostgreSQL `ai_db`, but the packaged application has no JDBC driver or JPA integration. No search or model invocation is implemented. |
-| [auth-service](../auth-service/pom.xml) | 8082 | Servlet MVC, Spring Security, JPA and PostgreSQL. Security uses framework auto-configuration. Application code defines no registration, token issuance, SSO, or RBAC operations. |
+| [auth-service](../auth-service/pom.xml) | 8082 | Servlet MVC, Spring Security, JPA and PostgreSQL. Application code defines `POST /api/v1/auth/register`, `GET /api/v1/auth/me`, a BCrypt encoder, a custom user-details service and role assignment on registration. No token issuance or SSO is implemented. |
 | [course-service](../course-service/pom.xml) | 8083 | Servlet MVC, validation, JPA/PostgreSQL and MongoDB. The module declares both Spring Data MongoDB and the MongoDB starter. There are no catalog handlers or mapped records. |
 | [notification-service](../notification-service/pom.xml) | 8084 | Servlet MVC and Eureka client. No explicit gateway route, message listener, delivery handler or persistence integration. |
 | [order-service](../order-service/pom.xml) | 8085 | Servlet MVC, validation, JPA and PostgreSQL. No checkout, payment callback, refund handler or order-event publisher. |
@@ -48,7 +48,7 @@ The root POM supplies the Eureka client to its six children. The gateway also im
 | `/api/v1/orders/**` | Any | `lb://ORDER-SERVICE` |
 | `/api/v1/ai/**` | Any | `lb://AI-SERVICE` |
 
-These path predicates select an upstream by service ID. The routes configure no prefix stripping, request-body schema, retry filter, or custom response format. The gateway forwards the original path. The configured upstream connect timeout is 5,000 ms and the response timeout is 30 seconds. A matching route can still fail when no instance is available, when security rejects the request, or when the upstream has no matching handler. The repository defines no successful create, list, login, or checkout response contract. [Route definitions and HTTP client settings](../api-gateway/src/main/resources/application.properties)
+These path predicates select an upstream by service ID. The routes configure no prefix stripping, retry filter, or custom response format. The gateway forwards the original path. `POST /api/v1/auth/register` and actuator paths are public; other paths require Basic credentials that the gateway checks against auth-service before forwarding. The configured upstream connect timeout is 5,000 ms and the response timeout is 30 seconds. A matching route can still fail when no instance is available, when validation rejects the request, or when the upstream has no matching handler. [Route definitions and HTTP client settings](../api-gateway/src/main/resources/application.properties)
 
 ## Framework endpoints and security
 
@@ -57,9 +57,11 @@ These path predicates select an upstream by service ID. The routes configure no 
 | Eureka dashboard | `GET /` on registry | Framework HTML view of registry status and registered instances. |
 | Eureka registry | `GET /eureka/apps` on registry | Framework registry document. A client can request JSON using `Accept: application/json`. The process needs time to register and refresh after startup. |
 | Registry management | `GET /actuator/health`, `/actuator/info`, `/actuator/metrics` on registry | The registry packages Actuator, health and Micrometer metrics. Properties request these endpoints and set health details to `never`. Responses describe the application and meter state. |
-| Auth security | A request to the auth service or its gateway prefix | The dependency stack includes Spring Security Web; the application supplies no custom filter chain or user store. Unauthenticated behavior can depend on content negotiation, method, and default CSRF handling. Validate behavior using the actual request headers before documenting a status or payload. |
+| Auth registration | `POST /api/v1/auth/register` | Public. Accepts an email and password, encodes the password with BCrypt, assigns `ROLE_TRAINEE` and returns the created user. |
+| Auth current user | `GET /api/v1/auth/me` | Requires HTTP Basic authentication and returns the caller's id, email, roles and enabled flag. |
+| Gateway identity headers | Any other routed request | Requires HTTP Basic authentication. Invalid or missing credentials receive `401`. Valid credentials produce `X-User-Id`, `X-User-Email` and `X-User-Roles` headers that downstream services use for authorization. |
 
-No gateway JWT validation, service-level resource-server configuration, or method authorization appears in the sources. The other business services do not package Spring Security Web. The registry uses HTTP and has no repository-defined access policy. [Auth dependencies](../auth-service/pom.xml) · [Gateway dependencies](../api-gateway/pom.xml) · [Registry settings](../eureka-server/src/main/resources/application.properties)
+No JWT or SSO is implemented. HTTP Basic is the local development credential transport; a production design should replace it with a token issued by a trusted identity provider. The registry uses HTTP and has no repository-defined access policy. [Auth security configuration](../auth-service/src/main/java/in/iamandroid/authservice/config/SecurityConfig.java) · [Gateway identity filter](../api-gateway/src/main/java/in/iamandroid/apigateway/security/AuthHeadersGatewayFilter.java) · [Registry settings](../eureka-server/src/main/resources/application.properties)
 
 ## Logging and monitoring
 

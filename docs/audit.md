@@ -70,8 +70,10 @@ The statuses below supersede the baseline rows above only for the scoped changes
 | Completed | Lombok works in Maven on JDK 25 | The root POM now sets `proc=full` and registers Lombok in `annotationProcessorPaths`. A `clean test` compiles `course-service`; `setCourse` and `setModule` are present in the generated classes. |
 | Completed | Duplicate JPA mappings removed | `BaseEntity` is now the only owner of `id`, `createdAt`, `updatedAt` and `version`. `Course` extends it; `Category`, `CourseModule` and `Lesson` no longer redeclare `id`. Each course table has one `id`, `created_at`, `updated_at` and `version` column. |
 | Completed | Credentials externalized | Datasource username/password are placeholders with local development fallbacks. The external credential-bearing MongoDB fallback was replaced with a local URI. |
+| Completed | Auth identity API | `auth-service` now has repositories, DTOs, a MapStruct mapper, BCrypt registration, HTTP Basic authentication and `GET /api/v1/auth/me`. `AuthApiIntegrationTest` verifies registration, duplicate-email handling and authenticated current-user lookup. |
+| Completed | Gateway identity validation | The gateway now validates Basic credentials with auth-service, strips client-supplied identity headers and forwards `X-User-Id`, `X-User-Email` and `X-User-Roles`. `AuthHeadersGatewayFilterTest` covers valid, missing and invalid credentials. |
 | Planned | Schema ownership and migrations | `ddl-auto=update` remains unchanged by request. Flyway/Liquibase adoption is still an open design decision. |
-| Planned | Business API and workflow implementation | The services still contain bootstrap code and entities, not repositories, controllers or learning workflows. |
+| In Progress | Business API and workflow implementation | Auth is implemented; course catalogue and enrolment/progress slices are being added incrementally. Course and order still have no business handlers at this checkpoint. |
 
 ### Verification command and result
 
