@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1170"
+     viewBox="0 0 1280 1170" font-family="Arial, sans-serif" fill="#19334a"
+     role="img" aria-labelledby="title desc">
+    <title id="title">Learning platform / database design</title>
+    <desc id="desc">Service-owned PostgreSQL databases for identity, catalog,
+        checkout and learning. A captured order line funds a revocable course
+        grant. Enrollment preserves learning history independently of access.</desc>
+
+    <rect width="1280" height="1170" fill="#f4f7f8"/>
+    <text x="32" y="48" font-size="32" font-weight="bold">Learning platform / database design</text>
+    <text x="32" y="79" font-size="16">One storefront with organization SSO. Each panel names the service that owns its records.</text>
+    <text x="32" y="107" font-size="14" fill="#365774">Every table has an id primary key.  *_id = local foreign key.  *_ref = external or provider reference.  1:N = one to many.</text>
+
+    <g transform="translate(32 134)">
+        <rect width="596" height="316" rx="10" fill="#fff" stroke="#b9c9d1"/>
+        <text x="20" y="34" font-size="22" font-weight="bold">Identity and authorization</text>
+        <text x="20" y="57" font-size="14" fill="#365774">auth-service / auth_db</text>
+        <g transform="translate(20 91)" font-family="Consolas, monospace" font-size="14">
+            <text y="0">app_user (status, display_name)</text>
+            <text y="24">external_identity (user_id, issuer, subject)</text>
+            <text y="48">organization (name, status)</text>
+            <text y="72">sso_connection (organization_id, broker_connection_ref)</text>
+            <text y="96">membership (organization_id, user_id, status)</text>
+            <text y="120">role (code)     permission (code)</text>
+            <text y="144">role_permission (role_id, permission_id)</text>
+            <text y="168">role_grant (membership_id, role_id, expires_at)</text>
+        </g>
+        <text x="20" y="294" font-size="15" fill="#155a53">User 1:N identities · Users N:M organizations · Roles N:M permissions</text>
+    </g>
+
+    <g transform="translate(652 134)">
+        <rect width="596" height="316" rx="10" fill="#fff" stroke="#b9c9d1"/>
+        <text x="20" y="34" font-size="22" font-weight="bold">Course catalog and publishing</text>
+        <text x="20" y="57" font-size="14" fill="#365774">course-service / course_db</text>
+        <g transform="translate(20 91)" font-family="Consolas, monospace" font-size="14">
+            <text y="0">course (organization_ref, slug, status)</text>
+            <text y="24">course_staff (course_id, user_ref, duty)</text>
+            <text y="48">course_release (course_id, version_no, published_at)</text>
+            <text y="72">section (release_id, position, title)</text>
+            <text y="96">lesson (section_id, position, title)</text>
+            <text y="120">media_asset (lesson_id, object_key, scan_state)</text>
+            <text y="144">offer (course_id, currency, price_minor, valid_from,</text>
+            <text y="168" x="50">valid_until, access_days)</text>
+        </g>
+        <text x="20" y="294" font-size="15" fill="#155a53">Course 1:N releases · Release 1:N sections · Section 1:N lessons</text>
+    </g>
+
+    <g transform="translate(32 468)">
+        <rect width="596" height="330" rx="10" fill="#fff" stroke="#b9c9d1"/>
+        <text x="20" y="34" font-size="22" font-weight="bold">Checkout and settlement</text>
+        <text x="20" y="57" font-size="14" fill="#365774">order-service / order_db</text>
+        <g transform="translate(20 91)" font-family="Consolas, monospace" font-size="14">
+            <text y="0">purchase_order (buyer_ref, currency, total_minor, state)</text>
+            <text y="24">order_line (order_id, offer_ref, course_ref, release_ref,</text>
+            <text y="48" x="50">title_snapshot, net_minor, tax_minor, access_days)</text>
+            <text y="72">payment_attempt (order_id, provider, merchant_ref,</text>
+            <text y="96" x="50">payment_ref, amount_minor, currency, state)</text>
+            <text y="120">refund (payment_attempt_id, refund_ref, amount_minor, state)</text>
+            <text y="144">refund_line (refund_id, order_line_id, amount_minor)</text>
+            <text y="168">webhook_receipt (provider, merchant_ref, event_ref, state)</text>
+            <text y="192">outbox_event (event_key, order_id, seq, type, payload)</text>
+        </g>
+        <text x="20" y="310" font-size="15" fill="#155a53">Order 1:N lines and attempts · Refund N:M lines via refund_line</text>
+    </g>
+
+    <g transform="translate(652 468)">
+        <rect width="596" height="330" rx="10" fill="#fff" stroke="#b9c9d1"/>
+        <text x="20" y="34" font-size="22" font-weight="bold">Access and learning records</text>
+        <text x="20" y="57" font-size="14" fill="#365774">Proposed learning-service / learning_db</text>
+        <g transform="translate(20 91)" font-family="Consolas, monospace" font-size="14">
+            <text y="0">access_grant (learner_ref, course_ref, source_kind,</text>
+            <text y="24" x="50">source_ref, starts_at, ends_at, revoked_at)</text>
+            <text y="48">enrollment (learner_ref, course_ref, release_ref, joined_at)</text>
+            <text y="72">lesson_progress (enrollment_id, lesson_ref, completed_at)</text>
+            <text y="96">assessment (release_ref, revision, pass_score)</text>
+            <text y="120">attempt (assessment_id, enrollment_id, score, submitted_at)</text>
+            <text y="144">certificate (enrollment_id, serial, issued_at, revoked_at)</text>
+            <text y="168">event_inbox (consumer, event_key, processed_at)</text>
+        </g>
+        <text x="20" y="310" font-size="15" fill="#155a53">Enrollment 1:N progress rows · Assessment 1:N attempts</text>
+    </g>
+
+    <rect x="32" y="818" width="1216" height="183" rx="10" fill="#e0f0eb"/>
+    <text x="52" y="849" font-size="17" font-weight="bold">Purchase to access / logical relationships</text>
+    <g fill="#fff" stroke="#93b8b1">
+        <rect x="52" y="886" width="221" height="45" rx="5"/>
+        <rect x="348" y="886" width="221" height="45" rx="5"/>
+        <rect x="681" y="886" width="221" height="45" rx="5"/>
+        <rect x="1007" y="886" width="221" height="45" rx="5"/>
+    </g>
+    <g text-anchor="middle" font-size="17">
+        <text x="162" y="915">course</text><text x="459" y="915">order_line</text>
+        <text x="792" y="915">access_grant</text><text x="1117" y="915">enrollment</text>
+    </g>
+    <path d="M273 909H348 M569 909H681 M902 909H1007"
+          fill="none" stroke="#46756d" stroke-width="2" stroke-dasharray="5 4"/>
+    <g text-anchor="middle" font-size="13" fill="#275d55">
+        <text x="310" y="878">is sold on</text><text x="625" y="878">funds</text>
+        <text x="955" y="878">permits study</text>
+    </g>
+    <text x="52" y="958" font-size="15">A verified capture funds a grant per purchased line. Enrollment records learning history.</text>
+    <text x="52" y="982" font-size="15">A refund can revoke that grant. Access continues while another valid grant covers the same learner and course.</text>
+
+    <text x="32" y="1045" font-size="22" font-weight="bold">Supporting stores</text>
+    <g font-size="16">
+        <text x="32" y="1075">notification-service · notification_db · delivery (event_key, recipient_ref, channel, state, next_try_at) and consumer inbox.</text>
+        <text x="32" y="1103">ai-service · Derived search index · Each chunk carries course_ref, release_ref and lesson_ref for access filtering and reindexing.</text>
+        <text x="32" y="1131">Audit store · Append-only events for role changes, SSO linking, publishing, refunds and grants. Record actor, target, time and correlation ID.</text>
+    </g>
+</svg>
