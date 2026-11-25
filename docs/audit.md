@@ -70,8 +70,8 @@ The statuses below supersede the baseline rows above only for the scoped changes
 | Completed | Lombok works in Maven on JDK 25 | The root POM now sets `proc=full` and registers Lombok in `annotationProcessorPaths`. A `clean test` compiles `course-service`; `setCourse` and `setModule` are present in the generated classes. |
 | Completed | Duplicate JPA mappings removed | `BaseEntity` is now the only owner of `id`, `createdAt`, `updatedAt` and `version`. `Course` extends it; `Category`, `CourseModule` and `Lesson` no longer redeclare `id`. Each course table has one `id`, `created_at`, `updated_at` and `version` column. |
 | Completed | Credentials externalized | Datasource username/password are placeholders with local development fallbacks. The external credential-bearing MongoDB fallback was replaced with a local URI. |
-| Completed | Auth identity API | `auth-service` now has repositories, DTOs, a MapStruct mapper, BCrypt registration, HTTP Basic authentication and `GET /api/v1/auth/me`. `AuthApiIntegrationTest` verifies registration, duplicate-email handling and authenticated current-user lookup. |
-| Completed | Gateway identity validation | The gateway now validates Basic credentials with auth-service, strips client-supplied identity headers and forwards `X-User-Id`, `X-User-Email` and `X-User-Roles`. `AuthHeadersGatewayFilterTest` covers valid, missing and invalid credentials. |
+| Completed | Auth identity API | `auth-service` now has repositories, DTOs, a MapStruct mapper, BCrypt registration, HTTP Basic authentication, `POST /api/v1/auth/login` and `GET /api/v1/auth/me`. `AuthApiIntegrationTest` verifies registration, duplicate-email handling, login with valid/invalid credentials and authenticated current-user lookup. |
+| Completed | Gateway identity validation | The gateway now validates Basic credentials with auth-service, exempts public registration and login from header injection, strips client-supplied identity headers and forwards `X-User-Id`, `X-User-Email` and `X-User-Roles`. `AuthHeadersGatewayFilterTest` covers valid, missing and invalid credentials plus public-route header stripping. |
 | Completed | Course catalogue API | `course-service` now has JPA repositories, MapStruct mappers, DTO validation, a catalogue service, public read endpoints, instructor/admin write endpoints and role checks from gateway headers. `CourseApiIntegrationTest` covers reads, authorization, nested curriculum creation, duplicate handling and lesson counts. |
 | Completed | Enrolment and progress API | `order-service` now owns `LessonProgress`, exposes enrolment and progress endpoints, enforces trainee ownership, and calculates percentages from course-service lesson counts. `OrderApiIntegrationTest` covers authorization, enrolment, progress updates, completion and duplicate handling. |
 | Planned | Schema ownership and migrations | `ddl-auto=update` remains unchanged by request. Flyway/Liquibase adoption is still an open design decision. |
@@ -97,9 +97,10 @@ With Eureka registration and fetching disabled, root logging set to `WARN` and `
 
 | Module command | Result |
 | --- | --- |
-| `.\mvnw.cmd -q -pl auth-service -am test` | **3 tests**, 3 passed, 0 failures/errors. |
-| `.\mvnw.cmd -q -pl api-gateway -am test` | **5 tests**, 5 passed, 0 failures/errors. |
+| `.\mvnw.cmd -q -pl auth-service -am test` | **3 tests**, 3 passed, 0 failures/errors (before the login test was added). |
+| `.\mvnw.cmd -q -pl api-gateway -am test` | **5 tests**, 5 passed, 0 failures/errors (before the public-login test was added). |
 | `.\mvnw.cmd -q -pl course-service -am test` | **6 tests**, 6 passed, 0 failures/errors. |
 | `.\mvnw.cmd -q -pl course-service,order-service -am test` | **13 tests**, 13 passed, 0 failures/errors. |
+| `.\mvnw.cmd -fae verify` | All **8 reactor modules** succeeded; **26 tests** passed, 0 failures/errors/skips. |
 
-The course test created a category, course, module and lesson through the HTTP API and rolled the writes back. The order test used a mocked course-service response for lesson counts and rolled enrolment/progress writes back. Mockito's self-attachment warning persisted and did not fail any run. Java 17 runtime execution, MongoDB operations and a live registry/gateway smoke test remain unverified by these module tests.
+The course test created a category, course, module and lesson through the HTTP API and rolled the writes back. The order test used a mocked course-service response for lesson counts and rolled enrolment/progress writes back. The auth test registered an account, logged in with correct and incorrect credentials, and rolled its writes back. The gateway test checked that public login strips client identity headers. Mockito's self-attachment warning and Hibernate's container `@Valid` deprecation warning persisted and did not fail any run. Java 17 runtime execution, MongoDB operations and a live registry/gateway smoke test remain unverified by these module tests.

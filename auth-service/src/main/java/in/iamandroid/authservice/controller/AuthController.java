@@ -1,5 +1,6 @@
 package in.iamandroid.authservice.controller;
 
+import in.iamandroid.authservice.dto.LoginRequest;
 import in.iamandroid.authservice.dto.RegisterRequest;
 import in.iamandroid.authservice.dto.UserResponse;
 import in.iamandroid.authservice.security.AuthUserPrincipal;
@@ -25,6 +26,11 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
+    }
+
+    @PostMapping("/login")
+    public UserResponse login(@Valid @RequestBody LoginRequest request) {
+        return authService.login(request);
     }
 
     @GetMapping("/me")

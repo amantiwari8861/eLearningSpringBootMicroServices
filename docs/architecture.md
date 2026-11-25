@@ -58,6 +58,7 @@ These path predicates select an upstream by service ID. The routes configure no 
 | Eureka registry | `GET /eureka/apps` on registry | Framework registry document. A client can request JSON using `Accept: application/json`. The process needs time to register and refresh after startup. |
 | Registry management | `GET /actuator/health`, `/actuator/info`, `/actuator/metrics` on registry | The registry packages Actuator, health and Micrometer metrics. Properties request these endpoints and set health details to `never`. Responses describe the application and meter state. |
 | Auth registration | `POST /api/v1/auth/register` | Public. Accepts an email and password, encodes the password with BCrypt, assigns `ROLE_TRAINEE` and returns the created user. |
+| Auth login | `POST /api/v1/auth/login` | Public. Checks the supplied email and password with the Spring Security authentication manager and returns the same user payload. Invalid credentials return `401` with `INVALID_CREDENTIALS`; no token or session is created. |
 | Auth current user | `GET /api/v1/auth/me` | Requires HTTP Basic authentication and returns the caller's id, email, roles and enabled flag. |
 | Gateway identity headers | Any other routed request | Requires HTTP Basic authentication. Invalid or missing credentials receive `401`. Valid credentials produce `X-User-Id`, `X-User-Email` and `X-User-Roles` headers that downstream services use for authorization. |
 

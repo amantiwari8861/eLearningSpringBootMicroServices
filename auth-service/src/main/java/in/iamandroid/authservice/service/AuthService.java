@@ -1,6 +1,7 @@
 package in.iamandroid.authservice.service;
 
 import in.iamandroid.authservice.constants.RoleName;
+import in.iamandroid.authservice.dto.LoginRequest;
 import in.iamandroid.authservice.dto.RegisterRequest;
 import in.iamandroid.authservice.dto.UserResponse;
 import in.iamandroid.authservice.entities.GenericUser;
@@ -11,6 +12,8 @@ import in.iamandroid.authservice.mapper.UserMapper;
 import in.iamandroid.authservice.repository.RoleRepository;
 import in.iamandroid.authservice.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +28,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;
     private final UserMapper userMapper;
 
     public UserResponse register(RegisterRequest request) {
@@ -40,6 +44,13 @@ public class AuthService {
         user.getRoles().add(getOrCreateRole(RoleName.ROLE_TRAINEE));
 
         return userMapper.toResponse(userRepository.save(user));
+    }
+
+    public UserResponse login(LoginRequest request) {
+        String normalizedEmail = request.email().trim().toLowerCase(Locale.ROOT);
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(normalizedEmail, request.password()));
+        return getCurrentUser(normalizedEmail);
     }
 
     @Transactional(readOnly = true)

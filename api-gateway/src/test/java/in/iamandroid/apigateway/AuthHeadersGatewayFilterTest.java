@@ -112,6 +112,25 @@ class AuthHeadersGatewayFilterTest {
         assertTrue(forwarded.get().getRequest().getPath().value().equals("/api/v1/auth/register"));
     }
 
+    @Test
+    void publicLoginDoesNotForwardClientIdentityHeaders() {
+        AuthHeadersGatewayFilter filter = filterWithAuthResponse(HttpStatus.OK, "{}");
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+                MockServerHttpRequest.post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header(AuthHeadersGatewayFilter.USER_ID_HEADER, "spoofed")
+                        .body("{}"));
+        AtomicReference<ServerWebExchange> forwarded = new AtomicReference<>();
+
+        filter.filter(exchange, next -> {
+            forwarded.set(next);
+            return Mono.empty();
+        }).block();
+
+        assertNull(forwarded.get().getRequest().getHeaders().getFirst(AuthHeadersGatewayFilter.USER_ID_HEADER));
+        assertEquals("/api/v1/auth/login", forwarded.get().getRequest().getPath().value());
+    }
+
     private AuthHeadersGatewayFilter filterWithAuthResponse(HttpStatus status, String body) {
         ClientResponse response = ClientResponse.create(status)
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)

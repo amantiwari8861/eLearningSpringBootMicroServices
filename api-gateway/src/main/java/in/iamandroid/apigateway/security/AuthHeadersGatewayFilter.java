@@ -62,7 +62,9 @@ public class AuthHeadersGatewayFilter implements GlobalFilter, Ordered {
     }
 
     private boolean isPublicPath(String path) {
-        return path.equals("/api/v1/auth/register") || path.startsWith("/actuator/");
+        return path.equals("/api/v1/auth/register")
+                || path.equals("/api/v1/auth/login")
+                || path.startsWith("/actuator/");
     }
 
     private ServerWebExchange withoutClientIdentityHeaders(ServerWebExchange exchange) {
