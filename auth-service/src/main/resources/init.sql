@@ -13,14 +13,22 @@ INSERT INTO public.roles (id, name, description) VALUES
     ('2405e851-1e8c-5ca9-8d3b-d6dcc031a49e', 'ROLE_TRAINEE', 'Dummy trainee role')
 ON CONFLICT (name) DO NOTHING;
 
--- GenericUser entity: users(id uuid, email, password_hash).
+-- GenericUser entity: users(id uuid, email, password_hash, enabled).
 -- There is no username, password or role column in the entity model.
-INSERT INTO public.users (id, email, password_hash) VALUES
+-- Password hashes are BCrypt hashes of a local dummy password.
+INSERT INTO public.users (id, email, password_hash, enabled) VALUES
+    ('b8f5f5a1-9b60-5a91-8f3e-6d5b3a2f1c77',
+     'dummy.validation+admin@example.invalid',
+     '$2a$10$/3YQ0.p61igqSLHJImAuk.x16nAYMmGsi5R8JMr8BGBUUwKezKXjm', TRUE),
     ('0f158e06-2d29-5d67-8c27-68b42ac92364',
-     'dummy.validation+instructor@example.invalid', 'DUMMY-HASH-NOT-REAL'),
+     'dummy.validation+instructor@example.invalid',
+     '$2a$10$/3YQ0.p61igqSLHJImAuk.x16nAYMmGsi5R8JMr8BGBUUwKezKXjm', TRUE),
     ('197b7a63-5541-5052-88db-7a1eb783cd44',
-     'dummy.validation+trainee@example.invalid', 'DUMMY-HASH-NOT-REAL')
-ON CONFLICT (id) DO NOTHING;
+     'dummy.validation+trainee@example.invalid',
+     '$2a$10$/3YQ0.p61igqSLHJImAuk.x16nAYMmGsi5R8JMr8BGBUUwKezKXjm', TRUE)
+ON CONFLICT (id) DO UPDATE
+SET password_hash = EXCLUDED.password_hash,
+    enabled = EXCLUDED.enabled;
 
 -- Profile entity: userId is a uuid FK by convention to users.id.
 INSERT INTO public.profiles
@@ -59,9 +67,13 @@ ON CONFLICT (profile_id) DO NOTHING;
 -- GenericUser.roles join table: user_id, role_id with FKs to users and roles.
 -- Role ids are resolved by name so pre-existing roles work too.
 INSERT INTO public.user_roles (user_id, role_id)
+SELECT 'b8f5f5a1-9b60-5a91-8f3e-6d5b3a2f1c77'::uuid, r.id
+  FROM public.roles r
+ WHERE r.name = 'ROLE_ADMIN'
+UNION ALL
 SELECT '0f158e06-2d29-5d67-8c27-68b42ac92364'::uuid, r.id
   FROM public.roles r
- WHERE r.name IN ('ROLE_ADMIN', 'ROLE_INSTRUCTOR')
+ WHERE r.name = 'ROLE_INSTRUCTOR'
 UNION ALL
 SELECT '197b7a63-5541-5052-88db-7a1eb783cd44'::uuid, r.id
   FROM public.roles r

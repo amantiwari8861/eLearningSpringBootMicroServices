@@ -22,6 +22,9 @@ public class GenericUser {
     @Column(nullable = false)
     private String passwordHash;
 
+    @Column
+    private boolean enabled = true;
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "user_roles",
