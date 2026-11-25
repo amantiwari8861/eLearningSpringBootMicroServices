@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1260" height="856" viewBox="0 0 1260 856"
+     role="img" aria-labelledby="title description">
+  <title id="title">MultiModuleProject service connections</title>
+  <desc id="description">Clients call the gateway on 8080. The gateway looks up five registered
+    backend services in Eureka and forwards HTTP requests to them. Auth, product and order each
+    own a database on one PostgreSQL instance. Order publishes to the Kafka orders topic.
+    The notification service consumes order events and exposes them through its API. Notification
+    history and AI documents are held in memory. Prometheus scrapes all seven applications.
+    Grafana has no provisioned data source.</desc>
+  <defs>
+    <marker id="arrow" orient="auto" markerWidth="8" markerHeight="8" refX="7" refY="4"
+            viewBox="0 0 8 8"><path d="M0 0L8 4L0 8Z" fill="#30546c"/></marker>
+    <marker id="discovery" orient="auto" markerWidth="8" markerHeight="8" refX="7" refY="4"
+            viewBox="0 0 8 8"><path d="M0 0L8 4L0 8Z" fill="#326956"/></marker>
+    <style>
+      text { font-family: "Segoe UI", Arial, sans-serif; fill: #17334a; }
+      .title { font-size: 34px; font-weight: 700; }
+      .subtitle { font-size: 17px; fill: #41596e; }
+      .group { font-size: 14px; font-weight: 700; letter-spacing: 1.2px; }
+      .name { font-size: 20px; font-weight: 650; }
+      .detail { font-size: 16px; }
+      .note { font-size: 14px; fill: #41596e; }
+      .port { font-size: 15px; font-family: Consolas, monospace; fill: #41596e; }
+      .card { fill: #fff; stroke: #a8b9c6; stroke-width: 1.4; }
+      .edge { fill: none; stroke: #30546c; stroke-width: 2; marker-end: url(#arrow); }
+      .registry { fill: none; stroke: #326956; stroke-width: 2; stroke-dasharray: 5 4; marker-end: url(#discovery); }
+    </style>
+  </defs>
+
+  <rect width="1260" height="856" fill="#fff"/>
+  <text class="title" x="36" y="52">Service connections</text>
+  <text class="subtitle" x="36" y="82">MultiModuleProject · HTTP routing, service discovery, persistence and order events</text>
+
+  <!-- Service group. The registration arrow applies to all five backends. -->
+  <rect x="554" y="108" width="325" height="603" rx="12" fill="#f1f6fa" stroke="#cfdae2"/>
+  <text class="group" x="576" y="136">BACKEND SERVICES</text>
+  <rect x="962" y="108" width="262" height="309" rx="12" fill="#f0f6f4" stroke="#bccfc6"/>
+  <text class="group" x="982" y="136">POSTGRESQL</text>
+  <text class="port" x="1203" y="136" text-anchor="end">5432</text>
+
+  <!-- Request, registry, database and topic connections. -->
+  <path class="edge" d="M171 366H240"/>
+  <path fill="none" stroke="#30546c" stroke-width="2" d="M443 366H506 M506 187V657"/>
+  <path class="edge" d="M506 187H572"/>
+  <path class="edge" d="M506 278H572"/>
+  <path class="edge" d="M506 369H572"/>
+  <path class="edge" d="M506 547H572"/>
+  <path class="edge" d="M506 657H572"/>
+  <path class="registry" d="M344 320V199"/>
+  <path class="registry" d="M554 155H446"/>
+  <path class="edge" d="M857 187H979"/>
+  <path class="edge" d="M857 278H979"/>
+  <path class="edge" d="M857 369H979"/>
+  <path class="edge" d="M857 393H903V465H959"/>
+  <path class="edge" d="M1093 510V547H859"/>
+
+  <!-- Access and discovery. -->
+  <rect x="238" y="118" width="204" height="79" rx="9" fill="#e3f1e9" stroke="#8cb29c"/>
+  <text class="name" x="254" y="148">discovery-server</text>
+  <text class="detail" x="254" y="175">Eureka · 8761</text>
+  <text class="note" x="497" y="144" text-anchor="middle">register</text>
+  <text class="note" x="355" y="245">register +</text>
+  <text class="note" x="355" y="264">fetch registry</text>
+
+  <rect class="card" x="36" y="333" width="135" height="66" rx="9"/>
+  <text class="name" x="103" y="373" text-anchor="middle">API client</text>
+  <text class="note" x="205" y="353" text-anchor="middle">HTTP</text>
+  <rect x="242" y="321" width="201" height="90" rx="9" fill="#173c56"/>
+  <text class="name" x="260" y="351" style="fill:#fff">api-gateway</text>
+  <text class="detail" x="260" y="377" style="fill:#e0eef8">HTTP · 8080</text>
+  <text class="note" x="260" y="398" style="fill:#e0eef8">Checks bearer JWTs</text>
+
+  <!-- Backend service cards. -->
+  <g>
+    <rect class="card" x="575" y="151" width="282" height="74" rx="8"/>
+    <text class="name" x="591" y="178">auth-service</text>
+    <text class="port" x="841" y="178" text-anchor="end">8081</text>
+    <text class="detail" x="591" y="205">/api/auth · issues JWTs</text>
+
+    <rect class="card" x="575" y="242" width="282" height="74" rx="8"/>
+    <text class="name" x="591" y="269">product-service</text>
+    <text class="port" x="841" y="269" text-anchor="end">8082</text>
+    <text class="detail" x="591" y="296">/api/products · create and read</text>
+
+    <rect class="card" x="575" y="333" width="282" height="74" rx="8"/>
+    <text class="name" x="591" y="360">order-service</text>
+    <text class="port" x="841" y="360" text-anchor="end">8083</text>
+    <text class="detail" x="591" y="387">/api/orders · create and list</text>
+
+    <rect class="card" x="575" y="502" width="282" height="90" rx="8"/>
+    <text class="name" x="591" y="529">notification-service</text>
+    <text class="port" x="841" y="529" text-anchor="end">8084</text>
+    <text class="detail" x="591" y="555">/api/notifications</text>
+    <text class="note" x="591" y="578">Received events held in memory</text>
+
+    <rect class="card" x="575" y="612" width="282" height="90" rx="8"/>
+    <text class="name" x="591" y="639">ai-service</text>
+    <text class="port" x="841" y="639" text-anchor="end">8085</text>
+    <text class="detail" x="591" y="665">/api/ai · status and retrieval</text>
+    <text class="note" x="591" y="688">Keyword search over in-memory docs</text>
+  </g>
+
+  <!-- One database server, three logical databases. -->
+  <g>
+    <rect class="card" x="982" y="159" width="221" height="56" rx="8"/>
+    <text class="name" x="998" y="194">auth_db</text>
+    <rect class="card" x="982" y="250" width="221" height="56" rx="8"/>
+    <text class="name" x="998" y="285">product_db</text>
+    <rect class="card" x="982" y="341" width="221" height="56" rx="8"/>
+    <text class="name" x="998" y="376">order_db</text>
+  </g>
+  <rect x="962" y="433" width="262" height="77" rx="9" fill="#fcf2dd" stroke="#c7a768"/>
+  <text class="name" x="978" y="463">Kafka</text>
+  <text class="port" x="1203" y="463" text-anchor="end">9092</text>
+  <text class="detail" x="978" y="489">orders · OrderPlacedEvent</text>
+  <text class="note" x="911" y="451">send</text>
+  <text class="detail" x="896" y="574">Consume order events</text>
+  <text class="note" x="896" y="596">Consumer group: notification-service</text>
+
+  <line x1="36" y1="735" x2="1224" y2="735" stroke="#c9d4dc"/>
+  <text class="group" x="36" y="768">METRICS</text>
+  <text class="name" x="170" y="769">Prometheus · 9090</text>
+  <path class="edge" d="M355 763H401"/>
+  <text class="detail" x="415" y="769">All seven Spring applications</text>
+  <text class="note" x="170" y="799">Scrapes /actuator/prometheus every 15 seconds</text>
+  <line x1="755" y1="754" x2="755" y2="811" stroke="#c9d4dc"/>
+  <text class="name" x="786" y="769">Grafana · 3000</text>
+  <text class="note" x="786" y="799">Compose starts Grafana with no provisioned data source.</text>
+</svg>
