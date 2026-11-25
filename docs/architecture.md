@@ -1,6 +1,6 @@
 # Runtime architecture and HTTP surface
 
-The Maven reactor builds seven Spring Boot applications. The registry and gateway provide infrastructure. Auth implements registration, current-user lookup, BCrypt password hashing and HTTP Basic authentication. The gateway validates Basic credentials with auth-service and forwards signed-in identity headers to downstream services. Course now exposes a public catalogue plus instructor/admin write endpoints backed by JPA and MapStruct. Order, notification and AI still have application entry points and persistence dependencies without business handlers. The database design in this directory describes a larger LMS than the Java applications currently implement. [Reactor POM](../pom.xml) · [Database design](attribute-guide.md)
+The Maven reactor builds seven Spring Boot applications. The registry and gateway provide infrastructure. Auth implements registration, current-user lookup, BCrypt password hashing and HTTP Basic authentication. The gateway validates Basic credentials with auth-service and forwards signed-in identity headers to downstream services. Course exposes a public catalogue plus instructor/admin write endpoints backed by JPA and MapStruct. Order now exposes enrolment and lesson-progress endpoints backed by JPA; progress percentages come from a small course-service lesson-count endpoint. Notification and AI still have application entry points and persistence dependencies without business handlers. The database design in this directory describes a larger LMS than the Java applications currently implement. [Reactor POM](../pom.xml) · [Database design](attribute-guide.md)
 
 ## Request and discovery paths
 
@@ -35,7 +35,7 @@ The solid links show configured HTTP routes and database integrations. Dotted li
 | [auth-service](../auth-service/pom.xml) | 8082 | Servlet MVC, Spring Security, JPA and PostgreSQL. Application code defines `POST /api/v1/auth/register`, `GET /api/v1/auth/me`, a BCrypt encoder, a custom user-details service and role assignment on registration. No token issuance or SSO is implemented. |
 | [course-service](../course-service/pom.xml) | 8083 | Servlet MVC, validation, Spring Security, JPA/PostgreSQL, MongoDB and MapStruct. Mapped entities form the catalog; `GET` endpoints are public and write endpoints require `ROLE_ADMIN` or `ROLE_INSTRUCTOR` from the gateway identity headers. |
 | [notification-service](../notification-service/pom.xml) | 8084 | Servlet MVC and Eureka client. No explicit gateway route, message listener, delivery handler or persistence integration. |
-| [order-service](../order-service/pom.xml) | 8085 | Servlet MVC, validation, JPA and PostgreSQL. No checkout, payment callback, refund handler or order-event publisher. |
+| [order-service](../order-service/pom.xml) | 8085 | Servlet MVC, validation, Spring Security, JPA/PostgreSQL and MapStruct. Trainees enrol, list their courses and record lesson completion. Progress calls course-service for the lesson count. No checkout, payment callback, refund handler or order-event publisher. |
 
 The root POM supplies the Eureka client to its six children. The gateway also imports the same Cloud BOM locally. There is no Java `learning-service` or audit module in the reactor. [Root dependency and module definitions](../pom.xml)
 
@@ -76,6 +76,17 @@ No JWT or SSO is implemented. HTTP Basic is the local development credential tra
 | `POST /api/v1/courses/{courseId}/modules/{moduleId}/lessons` | `ROLE_ADMIN` or `ROLE_INSTRUCTOR` | Adds a lesson at a unique position in the module. |
 
 Validation failures return `400` with `VALIDATION_FAILED`; missing identity returns `401` and insufficient role returns `403`. [Course controller](../course-service/src/main/java/in/iamandroid/course/controller/CourseController.java) · [Exception handler](../course-service/src/main/java/in/iamandroid/course/exception/GlobalExceptionHandler.java)
+
+## Learning HTTP contract
+
+| Request | Authorization | Handler behavior |
+| --- | --- | --- |
+| `POST /api/v1/orders/enrollments` | `ROLE_TRAINEE` or `ROLE_ADMIN` | Enrols the authenticated user in a course; duplicate enrolment returns `409`. |
+| `GET /api/v1/orders/enrollments/me` | Authenticated | Lists only the authenticated user's enrolments. |
+| `POST /api/v1/orders/lessons/{lessonId}/progress` | `ROLE_TRAINEE` or `ROLE_ADMIN` | Creates or updates one lesson's completion for the authenticated user's enrolment. |
+| `GET /api/v1/orders/courses/{courseId}/progress` | Authenticated | Returns completed lessons, total lessons and percentage for the authenticated user's enrolment. |
+
+`ProgressRequest` carries `courseId` and `completed`. Completing every lesson also sets the enrolment to `COMPLETED`. The total lesson count is read from `GET /api/v1/courses/{courseId}/lesson-count` at `lms.course-service-url`, defaulting to the local course-service port. The order service never exposes another trainee's progress because every lookup is keyed by the authenticated user id. [Learning controller](../order-service/src/main/java/in/iamandroid/order/controller/LearningController.java) · [Progress service](../order-service/src/main/java/in/iamandroid/order/service/ProgressService.java) · [Catalog client](../order-service/src/main/java/in/iamandroid/order/client/CourseCatalogClient.java)
 
 ## Logging and monitoring
 

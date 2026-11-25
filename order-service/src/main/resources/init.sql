@@ -22,4 +22,16 @@ VALUES
      'ACTIVE', '2026-11-25T12:00:00+00:00', NULL, NULL, 0)
 ON CONFLICT (trainee_user_id, course_id) DO NOTHING;
 
+-- LessonProgress entity: id uuid, enrollment_id uuid, lesson_id uuid, completed,
+-- completed_at timestamptz, version bigint. A unique key prevents duplicate
+-- progress rows for one enrollment and lesson.
+INSERT INTO public.lesson_progress
+    (id, enrollment_id, lesson_id, completed, completed_at, version)
+VALUES
+    ('a6b4c2d8-7e91-5f30-9c2a-4d8e6b1f0a73',
+     '397c2bb2-bdd7-5334-afca-ed6ff104da20',
+     'c7f9e2c9-1cdd-5d20-b091-955a336bc532',
+     TRUE, '2026-11-25T13:00:00+00:00', 0)
+ON CONFLICT (enrollment_id, lesson_id) DO NOTHING;
+
 COMMIT;

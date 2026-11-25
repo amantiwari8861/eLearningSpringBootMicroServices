@@ -6,6 +6,7 @@ import in.iamandroid.course.dto.CategoryRequest;
 import in.iamandroid.course.dto.CategoryResponse;
 import in.iamandroid.course.dto.CourseRequest;
 import in.iamandroid.course.dto.CourseResponse;
+import in.iamandroid.course.dto.LessonCountResponse;
 import in.iamandroid.course.dto.LessonRequest;
 import in.iamandroid.course.dto.LessonResponse;
 import in.iamandroid.course.dto.ModuleRequest;
@@ -82,6 +83,14 @@ public class CourseCatalogService {
         return courseRepository.findBySlug(slug)
                 .map(courseMapper::toResponse)
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found: " + slug));
+    }
+
+    @Transactional(readOnly = true)
+    public LessonCountResponse lessonCount(UUID courseId) {
+        if (!courseRepository.existsById(courseId)) {
+            throw new ResourceNotFoundException("Course not found");
+        }
+        return new LessonCountResponse((int) lessonRepository.countByModuleCourseId(courseId));
     }
 
     public CourseResponse createCourse(CourseRequest request, UUID instructorUserId) {

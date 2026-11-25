@@ -4,6 +4,7 @@ import in.iamandroid.course.dto.CategoryRequest;
 import in.iamandroid.course.dto.CategoryResponse;
 import in.iamandroid.course.dto.CourseRequest;
 import in.iamandroid.course.dto.CourseResponse;
+import in.iamandroid.course.dto.LessonCountResponse;
 import in.iamandroid.course.dto.LessonRequest;
 import in.iamandroid.course.dto.LessonResponse;
 import in.iamandroid.course.dto.ModuleRequest;
@@ -50,6 +51,11 @@ public class CourseController {
     @GetMapping("/{slug}")
     public CourseResponse course(@PathVariable String slug) {
         return catalogService.getCourse(slug);
+    }
+
+    @GetMapping("/{courseId}/lesson-count")
+    public LessonCountResponse lessonCount(@PathVariable UUID courseId) {
+        return catalogService.lessonCount(courseId);
     }
 
     @PostMapping

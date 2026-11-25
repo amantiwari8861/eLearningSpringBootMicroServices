@@ -2,13 +2,13 @@
 
 ## What the applications configure
 
-The JPA entities, not the standalone design SQL, define the current application-owned schema. Auth now owns `users`, `roles` and `user_roles`; course owns `categories`, `courses`, `course_modules` and `lessons`; order owns `enrollments`. Each module also has an idempotent `init.sql` seed that runs after Hibernate schema update. No MongoDB document classes exist; the course MongoDB configuration is unused by application code.
+The JPA entities, not the standalone design SQL, define the current application-owned schema. Auth owns `users`, `roles` and `user_roles`; course owns `categories`, `courses`, `course_modules` and `lessons`; order owns `enrollments` and `lesson_progress`. Each module also has an idempotent `init.sql` seed that runs after Hibernate schema update. Progress stores one row per enrolment and lesson, with a unique key on `(enrollment_id, lesson_id)`. No MongoDB document classes exist; the course MongoDB configuration is unused by application code.
 
 | Module | Configured storage | Evidence and scope |
 | --- | --- | --- |
 | `auth-service` | PostgreSQL, `localhost:5432/auth_db` | JPA entities `GenericUser` and `Role`; repositories and BCrypt-backed user details. Tables: `users`, `roles`, `user_roles`. [POM](../auth-service/pom.xml) · [properties](../auth-service/src/main/resources/application.properties) |
 | `course-service` | PostgreSQL, `localhost:5432/course_db`, plus configured MongoDB | JPA entities `Category`, `Course`, `CourseModule` and `Lesson` with `BaseEntity` owning `id`, timestamps and `version`. Tables: `categories`, `courses`, `course_modules`, `lessons`. `MONGODB_URI` overrides the unused Mongo connection. [POM](../course-service/pom.xml) · [properties](../course-service/src/main/resources/application.properties) |
-| `order-service` | PostgreSQL, `localhost:5432/order_db` | JPA entity `Enrollment`. Table: `enrollments`. [POM](../order-service/pom.xml) · [properties](../order-service/src/main/resources/application.properties) |
+| `order-service` | PostgreSQL, `localhost:5432/order_db` | JPA entities `Enrollment` and `LessonProgress`. Tables: `enrollments`, `lesson_progress`. Progress percentages use a course-service lesson-count read; no course data is copied into `order_db`. [POM](../order-service/pom.xml) · [properties](../order-service/src/main/resources/application.properties) |
 | `ai-service` | Properties name `localhost:5432/ai_db` | Its POM and parent supply neither JPA nor the PostgreSQL driver. Its Java entry point contains no database integration. [POM](../ai-service/pom.xml) · [properties](../ai-service/src/main/resources/application.properties) |
 | `api-gateway`, `eureka-server`, `notification-service` | No application datastore configured | See the [gateway](../api-gateway/src/main/resources/application.properties), [registry](../eureka-server/src/main/resources/application.properties), and [notification](../notification-service/src/main/resources/application.properties) configurations. |
 

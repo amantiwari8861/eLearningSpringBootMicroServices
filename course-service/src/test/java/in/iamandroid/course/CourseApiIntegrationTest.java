@@ -128,6 +128,10 @@ class CourseApiIntegrationTest {
                 .andExpect(jsonPath("$.moduleId").value(moduleId))
                 .andExpect(jsonPath("$.freePreview").value(true));
 
+        mockMvc.perform(get("/api/v1/courses/" + courseId + "/lesson-count"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.lessonCount").value(1));
+
         mockMvc.perform(get("/api/v1/courses/" + courseSlug))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value(courseRequest.title()))
