@@ -59,3 +59,30 @@ The statuses below describe repository evidence as of the audit. Planned rows ar
 | Planned | P1 | Add repeatable isolated test dependencies, route/authorization and persistence tests, and a CI job that runs the wrapper's `verify` goal. | Approve tooling and dependencies. A clean checkout should reproduce the baseline without hosted services or local credentials. |
 | Planned | P2 | Align management dependencies and monitoring with the endpoints operators actually require. Review unused AI settings and duplicated version declarations. | Approve the observability scope; demonstrate the intended endpoint, scrape and alert, with controlled access. |
 | Blocked | Release readiness | Production rollout of paid LMS access. | Requires implemented and tested identity, payment, entitlement and content flows, credential remediation, and an agreed deployment and recovery process. |
+
+## Implementation update (2026-11-26)
+
+The statuses below supersede the baseline rows above only for the scoped changes listed here.
+
+| Status | Item | Observed evidence |
+| --- | --- | --- |
+| Completed | Local databases recreated by the user | `auth_db`, `course_db` and `order_db` are present; `postgres` remains as the maintenance database. |
+| Completed | Lombok works in Maven on JDK 25 | The root POM now sets `proc=full` and registers Lombok in `annotationProcessorPaths`. A `clean test` compiles `course-service`; `setCourse` and `setModule` are present in the generated classes. |
+| Completed | Duplicate JPA mappings removed | `BaseEntity` is now the only owner of `id`, `createdAt`, `updatedAt` and `version`. `Course` extends it; `Category`, `CourseModule` and `Lesson` no longer redeclare `id`. Each course table has one `id`, `created_at`, `updated_at` and `version` column. |
+| Completed | Credentials externalized | Datasource username/password are placeholders with local development fallbacks. The external credential-bearing MongoDB fallback was replaced with a local URI. |
+| Planned | Schema ownership and migrations | `ddl-auto=update` remains unchanged by request. Flyway/Liquibase adoption is still an open design decision. |
+| Planned | Business API and workflow implementation | The services still contain bootstrap code and entities, not repositories, controllers or learning workflows. |
+
+### Verification command and result
+
+Windows PowerShell, from the repository root:
+
+```powershell
+$env:EUREKA_CLIENT_REGISTER_WITH_EUREKA='false'
+$env:EUREKA_CLIENT_FETCH_REGISTRY='false'
+$env:LOGGING_LEVEL_ROOT='WARN'
+$env:MONGODB_URI='mongodb://127.0.0.1:27017/course_db'
+.\mvnw.cmd -q -pl auth-service,course-service,order-service -am clean test
+```
+
+Result: **3 tests run, 3 passed, 0 failures, 0 errors** (one `contextLoads` per service). The datasource defaults pointed at the recreated local databases. Hibernate created the JPA tables and `init.sql` seeded `auth_db` (2 users, 3 roles, 3 user-role links), `course_db` (1 category, 1 course, 1 module, 1 lesson) and `order_db` (1 enrollment). Re-running the seeds remains safe because they use fixed UUIDs and conflict handling. Mockito emitted a self-attachment warning; it did not fail the build. MongoDB server availability and Java 17 runtime execution remain unverified by these context tests.

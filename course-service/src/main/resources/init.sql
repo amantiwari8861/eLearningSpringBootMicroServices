@@ -1,6 +1,8 @@
 -- course-service dummy seed data for course_db.
+-- Schema target: columns generated from the JPA entities in this module.
 -- Usage: psql -X -h localhost -p 5432 -U <user> -d course_db -f init.sql
 -- Idempotent: fixed UUIDs + ON CONFLICT DO NOTHING make re-runs safe.
+-- Enum strings match the CourseLevel, CourseStatus and LessonType constants.
 -- The instructor_user_id is the dummy UUID used by auth-service/src/main/resources/init.sql;
 -- cross-service references are intentionally not enforced by a database FK.
 

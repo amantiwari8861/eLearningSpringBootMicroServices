@@ -1,32 +1,28 @@
 -- auth-service dummy seed data for auth_db.
+-- Schema target: columns generated from the JPA entities in this module.
 -- Usage: psql -X -h localhost -p 5432 -U <user> -d auth_db -f init.sql
 -- Idempotent: fixed UUIDs + ON CONFLICT DO NOTHING make re-runs safe.
--- Dummy values only. Do not use these passwords or roles in a real environment.
+-- Dummy values only. Do not use these credentials in a real environment.
 
 BEGIN;
 
--- Canonical roles. Role ids are resolved by name when assigning grants below,
--- so this seed also works if the role rows were created with different UUIDs.
+-- Role entity: id uuid, name enum, description varchar.
 INSERT INTO public.roles (id, name, description) VALUES
     ('befb3504-b406-59fd-80ef-d19b96e06bdd', 'ROLE_ADMIN', 'Dummy admin role'),
     ('28020ca3-526f-5594-84eb-de5607d02dc6', 'ROLE_INSTRUCTOR', 'Dummy instructor role'),
     ('2405e851-1e8c-5ca9-8d3b-d6dcc031a49e', 'ROLE_TRAINEE', 'Dummy trainee role')
 ON CONFLICT (name) DO NOTHING;
 
--- Local account. The physical users.id column is currently bigint with no identity,
--- so an explicit id is required. The password columns are deliberately fake.
-INSERT INTO public.users (id, email, username, password, password_hash, role) VALUES
-    (990001,
-     'dummy.validation+instructor@example.invalid',
-     'dummy_validation_instructor',
-     'DUMMY-NOT-A-PASSWORD',
-     'DUMMY-HASH-NOT-REAL',
-     'ADMIN')
-ON CONFLICT (email) DO NOTHING;
+-- GenericUser entity: users(id uuid, email, password_hash).
+-- There is no username, password or role column in the entity model.
+INSERT INTO public.users (id, email, password_hash) VALUES
+    ('0f158e06-2d29-5d67-8c27-68b42ac92364',
+     'dummy.validation+instructor@example.invalid', 'DUMMY-HASH-NOT-REAL'),
+    ('197b7a63-5541-5052-88db-7a1eb783cd44',
+     'dummy.validation+trainee@example.invalid', 'DUMMY-HASH-NOT-REAL')
+ON CONFLICT (id) DO NOTHING;
 
--- Profiles use UUID user ids, matching the JPA entities rather than the current
--- bigint users.id. This mismatch is documented in the database audit; it is not
--- repaired by this seed.
+-- Profile entity: userId is a uuid FK by convention to users.id.
 INSERT INTO public.profiles
     (id, user_id, full_name, mobile_no, date_of_birth, gender,
      profile_image_url, bio, city, state, country, created_at, updated_at)
@@ -43,22 +39,25 @@ VALUES
      '2026-11-25T12:00:00+00:00', '2026-11-25T12:00:00+00:00')
 ON CONFLICT (id) DO NOTHING;
 
+-- Instructor entity uses @MapsId: profile_id is both PK and FK to profiles.
 INSERT INTO public.instructors
-    (profile_id, designation, expertise, linked_in_url, portfolio_url,
-     qualification, status, years_of_experience)
+    (profile_id, expertise, years_of_experience, qualification, designation,
+     linked_in_url, portfolio_url, status)
 VALUES
-    ('6cc0f0db-27aa-508b-8554-48785b790b3d', 'Validation Instructor', 'Spring Boot',
-     NULL, NULL, 'BSc', 'PENDING', 5)
+    ('6cc0f0db-27aa-508b-8554-48785b790b3d', 'Spring Boot', 5, 'BSc',
+     'Validation Instructor', NULL, NULL, 'PENDING')
 ON CONFLICT (profile_id) DO NOTHING;
 
+-- Trainee entity also uses @MapsId on profile_id.
 INSERT INTO public.trainees
-    (profile_id, graduation_year, institution, learning_goals, occupation, qualification)
+    (profile_id, qualification, institution, graduation_year, occupation, learning_goals)
 VALUES
-    ('3da8901b-b692-5ed0-a394-8e92f9e50228', 2026, 'Validation University',
-     'Learn microservices', 'Student', 'BSc')
+    ('3da8901b-b692-5ed0-a394-8e92f9e50228', 'BSc', 'Validation University',
+     2026, 'Student', 'Learn microservices')
 ON CONFLICT (profile_id) DO NOTHING;
 
--- Grants resolve role ids by name, so duplicate runs and pre-existing roles are safe.
+-- GenericUser.roles join table: user_id, role_id with FKs to users and roles.
+-- Role ids are resolved by name so pre-existing roles work too.
 INSERT INTO public.user_roles (user_id, role_id)
 SELECT '0f158e06-2d29-5d67-8c27-68b42ac92364'::uuid, r.id
   FROM public.roles r

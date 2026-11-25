@@ -3,10 +3,12 @@
 -- Pass credentials through PGUSER/PGPASSWORD or a local pg_service.conf entry;
 -- this file deliberately contains no credentials.
 --
--- Scope: auth_db, order_db and course_db are the databases that currently hold
--- JPA tables in this local cluster. The other databases named in
--- docs/lms-platform.sql (learning_db, notification_db, ai_db, audit_db) are not
--- provisioned here; add their blocks below after they are created.
+-- Scope: auth_db, order_db and course_db are the databases that hold the JPA
+-- entity tables. order_db contains only enrollments; there is no Order entity,
+-- so no public.orders table exists in a JPA-created schema.
+-- The other databases named in docs/lms-platform.sql (learning_db,
+-- notification_db, ai_db, audit_db) are not provisioned here; add their blocks
+-- below after they are created.
 
 \set ON_ERROR_STOP on
 \pset pager off
@@ -14,6 +16,9 @@
 \echo ''
 \echo '==================== auth_db ===================='
 \connect auth_db
+-- CREATE ROLE lms_admin WITH LOGIN SUPERUSER;
+-- \password lms_admin
+-- SELECT rolname, rolsuper, rolcreatedb, rolcreaterole FROM pg_roles WHERE rolname = 'lms_admin';
 
 \echo '-- table inventory --'
 SELECT table_name
@@ -61,10 +66,7 @@ SELECT table_name
  WHERE table_schema = 'public'
  ORDER BY table_name;
 
-\echo '-- orders: count --'
-SELECT count(*) AS row_count FROM public.orders;
-\echo '-- orders: rows --'
-SELECT * FROM public.orders ORDER BY id;
+-- No orders table: the Java sources contain no Order entity.
 
 \echo '-- enrollments: count --'
 SELECT count(*) AS row_count FROM public.enrollments;

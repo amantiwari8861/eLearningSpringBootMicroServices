@@ -12,7 +12,7 @@ Run Maven commands from the repository root. The root POM coordinates seven inde
 | Maven | Wrapper `3.3.4`, `only-script`, requests Apache Maven `3.10.1` | Root and module wrappers specify the same distribution. The first run needs the distribution and access to configured artifact repositories, or populated local caches. |
 | Persistence and tests | PostgreSQL JDBC, Hibernate/JPA, Spring Data MongoDB and JUnit Jupiter via managed dependencies | The POMs specify client libraries. The repository does not pin PostgreSQL or MongoDB **server** versions. |
 
-Six modules inherit the root POM, including its Eureka client dependency. `eureka-server` participates in the reactor and inherits Spring Boot directly, importing the Cloud BOM itself. `api-gateway` also redeclares the Cloud BOM. The gateway uses reactive Spring Cloud Gateway and WebFlux. AI and notification add Web MVC. Auth adds Web MVC, JPA, PostgreSQL JDBC and Spring Security. Order adds Web MVC, JPA, PostgreSQL JDBC and validation. Course adds the order module's technology set plus MongoDB and Spring Data MongoDB starters. [Root POM](../pom.xml) · [Gateway POM](../api-gateway/pom.xml) · [Eureka POM](../eureka-server/pom.xml) · [Wrapper settings](../.mvn/wrapper/maven-wrapper.properties)
+Six modules inherit the root POM, including its Eureka client dependency. `eureka-server` participates in the reactor and inherits Spring Boot directly, importing the Cloud BOM itself. `api-gateway` also redeclares the Cloud BOM. The gateway uses reactive Spring Cloud Gateway and WebFlux. AI and notification add Web MVC. Auth adds Web MVC, JPA, PostgreSQL JDBC and Spring Security. Order adds Web MVC, JPA, PostgreSQL JDBC and validation. Course adds the order module's technology set plus MongoDB and Spring Data MongoDB starters. On JDK 23 and newer, `javac` does not discover Lombok from the classpath; the root POM declares an explicit `annotationProcessorPaths` entry and `proc=full`. [Root POM](../pom.xml) · [Gateway POM](../api-gateway/pom.xml) · [Eureka POM](../eureka-server/pom.xml) · [Wrapper settings](../.mvn/wrapper/maven-wrapper.properties)
 
 The service JARs inspected in the audit contained Spring Framework 7.1.0, Cloud Gateway WebFlux / Netflix Eureka client / LoadBalancer 5.1.0, Spring Security 7.2.0 in auth, Hibernate 7.4.15.Final and PostgreSQL JDBC 42.7.14 in the three JPA modules, MongoDB sync driver 5.13.0 in course, and Logback 1.6.6. Eureka included Actuator 4.2.0 and Micrometer Core 1.18.0. Recheck effective versions after POM changes with `.\mvnw.cmd -pl <module> dependency:tree`.
 
@@ -30,7 +30,7 @@ CREATE DATABASE course_db OWNER lms_local;
 CREATE DATABASE order_db OWNER lms_local;
 ```
 
-For course, start a local MongoDB instance on port `27017`. For example, start `mongod --bind_ip 127.0.0.1 --port 27017 --dbpath <existing-local-data-directory>` with an empty directory reserved for development. Supply your local MongoDB URI before starting course or running its tests. The fallback in the course properties points to a hosted service and contains credentials.
+For course, start a local MongoDB instance on port `27017`. For example, start `mongod --bind_ip 127.0.0.1 --port 27017 --dbpath <existing-local-data-directory>` with an empty directory reserved for development. The course properties now fall back to a local URI. Override `MONGODB_URI` when your MongoDB server uses authentication, a different address or a different database name.
 
 ## Configure each terminal
 
@@ -40,24 +40,24 @@ For course, start a local MongoDB instance on port `27017`. For example, start `
 | `EUREKA_HOSTNAME` | Eureka server | Explicit placeholder. Defaults to `localhost` and contributes to the server's advertised registry URL. |
 | `EUREKA_SERVER_URL` | Six clients, including gateway | Explicit placeholder. Defaults to `http://localhost:8761/eureka/`. Update clients when the registry address changes. |
 | `MONGODB_URI` | Course | Explicit placeholder for `spring.mongodb.uri`. Use a local URI matching your MongoDB authentication settings. |
-| `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` | Auth, course, order | Standard Spring environment overrides for the literal values in the service properties. |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD` | Auth, course, order, AI | Placeholders used by the datasource properties. The checked-in values are development fallbacks only; override them in the terminal for any shared environment. Standard Spring datasource overrides continue to work. |
 | `SPRING_DATASOURCE_URL` | Auth, course, order | Standard Spring override for the JDBC URL. Scope to **one service** when overriding. Leaving it unset preserves distinct database names during a reactor test. |
 
 Example for the disposable databases above, in PowerShell. Set these values in the terminal that will start a service or run tests. On systems with authenticated MongoDB, supply its URI through your local secret configuration.
 
 ```powershell
-$env:SPRING_DATASOURCE_USERNAME = 'lms_local'
-$env:SPRING_DATASOURCE_PASSWORD = [System.Net.NetworkCredential]::new('', (Read-Host 'Local PostgreSQL password' -AsSecureString)).Password
+$env:POSTGRES_USER = 'lms_local'
+$env:POSTGRES_PASSWORD = [System.Net.NetworkCredential]::new('', (Read-Host 'Local PostgreSQL password' -AsSecureString)).Password
 $env:MONGODB_URI = 'mongodb://127.0.0.1:27017/course_db'
 ```
 
 Use the following commands in Bash.
 
 ```bash
-export SPRING_DATASOURCE_USERNAME=lms_local
-read -rs -p 'Local PostgreSQL password: ' SPRING_DATASOURCE_PASSWORD
+export POSTGRES_USER=lms_local
+read -rs -p 'Local PostgreSQL password: ' POSTGRES_PASSWORD
 echo
-export SPRING_DATASOURCE_PASSWORD
+export POSTGRES_PASSWORD
 export MONGODB_URI='mongodb://127.0.0.1:27017/course_db'
 ```
 
