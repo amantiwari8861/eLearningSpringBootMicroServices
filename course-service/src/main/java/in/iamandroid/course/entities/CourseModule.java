@@ -7,7 +7,6 @@ import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @Entity
 @Table(
@@ -21,9 +20,6 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 public class CourseModule extends BaseEntity {
-
-    @Id
-    private UUID id;
 
     @Column(nullable = false, length = 200)
     private String title;

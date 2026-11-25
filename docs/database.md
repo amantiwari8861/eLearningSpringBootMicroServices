@@ -2,17 +2,17 @@
 
 ## What the applications configure
 
-The Java modules currently contain application entry points and context-load tests. There are no JPA entity mappings, Spring Data repositories, MongoDB document classes, or application-owned table or collection definitions in their sources. Schema and record contents in a particular database depend on how its operator provisioned it.
+The JPA entities, not the standalone design SQL, define the current application-owned schema. Auth now owns `users`, `roles` and `user_roles`; course owns `categories`, `courses`, `course_modules` and `lessons`; order owns `enrollments`. Each module also has an idempotent `init.sql` seed that runs after Hibernate schema update. No MongoDB document classes exist; the course MongoDB configuration is unused by application code.
 
 | Module | Configured storage | Evidence and scope |
 | --- | --- | --- |
-| `auth-service` | PostgreSQL, `localhost:5432/auth_db` | Spring Data JPA and PostgreSQL JDBC driver. [POM](../auth-service/pom.xml) · [properties](../auth-service/src/main/resources/application.properties) |
-| `course-service` | PostgreSQL, `localhost:5432/course_db`, plus MongoDB | JPA, PostgreSQL and MongoDB starters. `MONGODB_URI` overrides the Mongo connection. Automatic Mongo index creation is enabled. [POM](../course-service/pom.xml) · [properties](../course-service/src/main/resources/application.properties) |
-| `order-service` | PostgreSQL, `localhost:5432/order_db` | Spring Data JPA and PostgreSQL JDBC driver. [POM](../order-service/pom.xml) · [properties](../order-service/src/main/resources/application.properties) |
+| `auth-service` | PostgreSQL, `localhost:5432/auth_db` | JPA entities `GenericUser` and `Role`; repositories and BCrypt-backed user details. Tables: `users`, `roles`, `user_roles`. [POM](../auth-service/pom.xml) · [properties](../auth-service/src/main/resources/application.properties) |
+| `course-service` | PostgreSQL, `localhost:5432/course_db`, plus configured MongoDB | JPA entities `Category`, `Course`, `CourseModule` and `Lesson` with `BaseEntity` owning `id`, timestamps and `version`. Tables: `categories`, `courses`, `course_modules`, `lessons`. `MONGODB_URI` overrides the unused Mongo connection. [POM](../course-service/pom.xml) · [properties](../course-service/src/main/resources/application.properties) |
+| `order-service` | PostgreSQL, `localhost:5432/order_db` | JPA entity `Enrollment`. Table: `enrollments`. [POM](../order-service/pom.xml) · [properties](../order-service/src/main/resources/application.properties) |
 | `ai-service` | Properties name `localhost:5432/ai_db` | Its POM and parent supply neither JPA nor the PostgreSQL driver. Its Java entry point contains no database integration. [POM](../ai-service/pom.xml) · [properties](../ai-service/src/main/resources/application.properties) |
 | `api-gateway`, `eureka-server`, `notification-service` | No application datastore configured | See the [gateway](../api-gateway/src/main/resources/application.properties), [registry](../eureka-server/src/main/resources/application.properties), and [notification](../notification-service/src/main/resources/application.properties) configurations. |
 
-The three JPA modules set `spring.jpa.hibernate.ddl-auto=update` and `spring.jpa.show-sql=true`. Starting their application contexts can open a connection. Use a disposable database for tests and supply its connection settings through `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, and `SPRING_DATASOURCE_PASSWORD`. Supply a local `MONGODB_URI` when running course-service because the default targets a remote host and includes credentials. Keep actual credentials out of examples and logs.
+The three JPA modules keep `spring.jpa.hibernate.ddl-auto=update` and `spring.jpa.show-sql=true`. Starting their application contexts can update the schema and run seed scripts against the configured databases. Use disposable databases for tests and override connection settings with `SPRING_DATASOURCE_URL`, `POSTGRES_USER` and `POSTGRES_PASSWORD`. Supply a local `MONGODB_URI` when running course-service; its fallback is loopback. Keep actual credentials out of examples and logs.
 
 ## Standalone PostgreSQL design
 
@@ -34,7 +34,7 @@ Within a database, foreign keys enforce relationships such as `refund_line.order
 
 ## Migrations and provisioning
 
-There is no Flyway or Liquibase configuration, application migration directory, or automatic Spring SQL initialization script in the service modules. The standalone script requires a PostgreSQL 16+ cluster provisioning superuser and the `psql` client. It switches databases, creates roles, and installs a baseline per database. A rerun skips a completed schema by its marker and does not repair drift. Running the script is a separate provisioning operation that changes the target cluster. Follow its instructions only when provisioning the design on an intended target. [Bootstrap header](lms-platform.sql) · [Installation instructions](attribute-guide.md#installation-and-runtime)
+There is no Flyway or Liquibase configuration or application migration directory. The service modules do use Spring SQL initialization: each has an idempotent `init.sql` that seeds fixed dummy rows after Hibernate updates the schema. `ddl-auto=update` remains an explicit local-development choice; schema ownership and migrations are still an open decision. The standalone `lms-platform.sql` requires a PostgreSQL 16+ cluster provisioning superuser and the `psql` client. It switches databases, creates roles, and installs a separate baseline per database. A rerun skips a completed schema by its marker and does not repair drift. Running it is a separate provisioning operation that changes the target cluster. Follow its instructions only when provisioning the design on an intended target. [Auth seed](../auth-service/src/main/resources/init.sql) · [Course seed](../course-service/src/main/resources/init.sql) · [Order seed](../order-service/src/main/resources/init.sql) · [Bootstrap header](lms-platform.sql)
 
 ## Proposed next decision
 

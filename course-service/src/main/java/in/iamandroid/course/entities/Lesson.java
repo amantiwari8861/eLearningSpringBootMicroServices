@@ -6,8 +6,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.UUID;
-
 @Entity
 @Table(
         name = "lessons",
@@ -20,9 +18,6 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 public class Lesson extends BaseEntity {
-
-    @Id
-    private UUID id;
 
     @Column(nullable = false, length = 200)
     private String title;

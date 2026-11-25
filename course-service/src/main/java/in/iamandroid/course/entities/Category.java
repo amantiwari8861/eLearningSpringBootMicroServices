@@ -5,8 +5,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.UUID;
-
 @Entity
 @Table(
         name = "categories",
@@ -25,9 +23,6 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 public class Category extends BaseEntity {
-
-    @Id
-    private UUID id;
 
     @Column(nullable = false, length = 100)
     private String name;

@@ -1,6 +1,6 @@
 # Runtime architecture and HTTP surface
 
-The Maven reactor builds seven Spring Boot applications. The registry and gateway provide infrastructure. Auth now implements registration, current-user lookup, BCrypt password hashing and HTTP Basic authentication. The gateway validates Basic credentials with auth-service and forwards signed-in identity headers to downstream services. Course, order, notification and AI still have application entry points and persistence dependencies without business handlers. The database design in this directory describes a larger LMS than the Java applications currently implement. [Reactor POM](../pom.xml) · [Database design](attribute-guide.md)
+The Maven reactor builds seven Spring Boot applications. The registry and gateway provide infrastructure. Auth implements registration, current-user lookup, BCrypt password hashing and HTTP Basic authentication. The gateway validates Basic credentials with auth-service and forwards signed-in identity headers to downstream services. Course now exposes a public catalogue plus instructor/admin write endpoints backed by JPA and MapStruct. Order, notification and AI still have application entry points and persistence dependencies without business handlers. The database design in this directory describes a larger LMS than the Java applications currently implement. [Reactor POM](../pom.xml) · [Database design](attribute-guide.md)
 
 ## Request and discovery paths
 
@@ -33,7 +33,7 @@ The solid links show configured HTTP routes and database integrations. Dotted li
 | [api-gateway](../api-gateway/pom.xml) | 8080 | Reactive Spring Cloud Gateway Server WebFlux, Eureka client and load balancing. Four explicit routes. A global filter validates Basic credentials with auth-service and injects `X-User-Id`, `X-User-Email` and `X-User-Roles` after removing client-supplied values. Automatic discovery routes are disabled. |
 | [ai-service](../ai-service/pom.xml) | 8081 | Servlet MVC application and Eureka client. Its properties reference PostgreSQL `ai_db`, but the packaged application has no JDBC driver or JPA integration. No search or model invocation is implemented. |
 | [auth-service](../auth-service/pom.xml) | 8082 | Servlet MVC, Spring Security, JPA and PostgreSQL. Application code defines `POST /api/v1/auth/register`, `GET /api/v1/auth/me`, a BCrypt encoder, a custom user-details service and role assignment on registration. No token issuance or SSO is implemented. |
-| [course-service](../course-service/pom.xml) | 8083 | Servlet MVC, validation, JPA/PostgreSQL and MongoDB. The module declares both Spring Data MongoDB and the MongoDB starter. There are no catalog handlers or mapped records. |
+| [course-service](../course-service/pom.xml) | 8083 | Servlet MVC, validation, Spring Security, JPA/PostgreSQL, MongoDB and MapStruct. Mapped entities form the catalog; `GET` endpoints are public and write endpoints require `ROLE_ADMIN` or `ROLE_INSTRUCTOR` from the gateway identity headers. |
 | [notification-service](../notification-service/pom.xml) | 8084 | Servlet MVC and Eureka client. No explicit gateway route, message listener, delivery handler or persistence integration. |
 | [order-service](../order-service/pom.xml) | 8085 | Servlet MVC, validation, JPA and PostgreSQL. No checkout, payment callback, refund handler or order-event publisher. |
 
@@ -61,7 +61,21 @@ These path predicates select an upstream by service ID. The routes configure no 
 | Auth current user | `GET /api/v1/auth/me` | Requires HTTP Basic authentication and returns the caller's id, email, roles and enabled flag. |
 | Gateway identity headers | Any other routed request | Requires HTTP Basic authentication. Invalid or missing credentials receive `401`. Valid credentials produce `X-User-Id`, `X-User-Email` and `X-User-Roles` headers that downstream services use for authorization. |
 
-No JWT or SSO is implemented. HTTP Basic is the local development credential transport; a production design should replace it with a token issued by a trusted identity provider. The registry uses HTTP and has no repository-defined access policy. [Auth security configuration](../auth-service/src/main/java/in/iamandroid/authservice/config/SecurityConfig.java) · [Gateway identity filter](../api-gateway/src/main/java/in/iamandroid/apigateway/security/AuthHeadersGatewayFilter.java) · [Registry settings](../eureka-server/src/main/resources/application.properties)
+No JWT or SSO is implemented. HTTP Basic is the local development credential transport; a production design should replace it with a token issued by a trusted identity provider. Course and order trust only the identity headers injected by the gateway, so their direct ports are not an external authorization boundary. The registry uses HTTP and has no repository-defined access policy. [Auth security configuration](../auth-service/src/main/java/in/iamandroid/authservice/config/SecurityConfig.java) · [Gateway identity filter](../api-gateway/src/main/java/in/iamandroid/apigateway/security/AuthHeadersGatewayFilter.java) · [Course security configuration](../course-service/src/main/java/in/iamandroid/course/config/SecurityConfig.java) · [Registry settings](../eureka-server/src/main/resources/application.properties)
+
+## Catalogue HTTP contract
+
+| Request | Authorization | Handler behavior |
+| --- | --- | --- |
+| `GET /api/v1/courses/categories` | Public | Lists category responses. |
+| `POST /api/v1/courses/categories` | `ROLE_ADMIN` or `ROLE_INSTRUCTOR` | Creates a category; conflicting name or slug returns `409`. |
+| `GET /api/v1/courses` | Public | Lists courses with nested modules and lessons. |
+| `GET /api/v1/courses/{slug}` | Public | Returns one course by slug or `404`. |
+| `POST /api/v1/courses` | `ROLE_ADMIN` or `ROLE_INSTRUCTOR` | Creates a course for the authenticated instructor id. |
+| `POST /api/v1/courses/{courseId}/modules` | `ROLE_ADMIN` or `ROLE_INSTRUCTOR` | Adds a module at a unique position in the course. |
+| `POST /api/v1/courses/{courseId}/modules/{moduleId}/lessons` | `ROLE_ADMIN` or `ROLE_INSTRUCTOR` | Adds a lesson at a unique position in the module. |
+
+Validation failures return `400` with `VALIDATION_FAILED`; missing identity returns `401` and insufficient role returns `403`. [Course controller](../course-service/src/main/java/in/iamandroid/course/controller/CourseController.java) · [Exception handler](../course-service/src/main/java/in/iamandroid/course/exception/GlobalExceptionHandler.java)
 
 ## Logging and monitoring
 

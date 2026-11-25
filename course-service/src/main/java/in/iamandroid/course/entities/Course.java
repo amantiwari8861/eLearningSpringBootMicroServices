@@ -6,11 +6,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -20,11 +17,7 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor
-public class Course {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+public class Course extends BaseEntity {
 
     @Column(nullable = false, updatable = false)
     private UUID instructorUserId;
@@ -71,13 +64,4 @@ public class Course {
         modules.remove(module);
         module.setCourse(null);
     }
-
-    @CreationTimestamp
-    private Instant createdAt;
-
-    @UpdateTimestamp
-    private Instant updatedAt;
-
-    @Version
-    private Long version;
 }

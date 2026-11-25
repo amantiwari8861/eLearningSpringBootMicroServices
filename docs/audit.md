@@ -72,8 +72,9 @@ The statuses below supersede the baseline rows above only for the scoped changes
 | Completed | Credentials externalized | Datasource username/password are placeholders with local development fallbacks. The external credential-bearing MongoDB fallback was replaced with a local URI. |
 | Completed | Auth identity API | `auth-service` now has repositories, DTOs, a MapStruct mapper, BCrypt registration, HTTP Basic authentication and `GET /api/v1/auth/me`. `AuthApiIntegrationTest` verifies registration, duplicate-email handling and authenticated current-user lookup. |
 | Completed | Gateway identity validation | The gateway now validates Basic credentials with auth-service, strips client-supplied identity headers and forwards `X-User-Id`, `X-User-Email` and `X-User-Roles`. `AuthHeadersGatewayFilterTest` covers valid, missing and invalid credentials. |
+| Completed | Course catalogue API | `course-service` now has JPA repositories, MapStruct mappers, DTO validation, a catalogue service, public read endpoints, instructor/admin write endpoints and role checks from gateway headers. `CourseApiIntegrationTest` covers reads, authorization, nested curriculum creation and duplicate handling. |
 | Planned | Schema ownership and migrations | `ddl-auto=update` remains unchanged by request. Flyway/Liquibase adoption is still an open design decision. |
-| In Progress | Business API and workflow implementation | Auth is implemented; course catalogue and enrolment/progress slices are being added incrementally. Course and order still have no business handlers at this checkpoint. |
+| In Progress | Business API and workflow implementation | Auth and catalogue are implemented. The enrolment and lesson-progress slice is the remaining part of the small LMS. Order still has no business handlers at this checkpoint. |
 
 ### Verification command and result
 
@@ -88,3 +89,15 @@ $env:MONGODB_URI='mongodb://127.0.0.1:27017/course_db'
 ```
 
 Result: **3 tests run, 3 passed, 0 failures, 0 errors** (one `contextLoads` per service). The datasource defaults pointed at the recreated local databases. Hibernate created the JPA tables and `init.sql` seeded `auth_db` (2 users, 3 roles, 3 user-role links), `course_db` (1 category, 1 course, 1 module, 1 lesson) and `order_db` (1 enrollment). Re-running the seeds remains safe because they use fixed UUIDs and conflict handling. Mockito emitted a self-attachment warning; it did not fail the build. MongoDB server availability and Java 17 runtime execution remain unverified by these context tests.
+
+### Incremental verification (2026-11-26)
+
+With Eureka registration and fetching disabled, root logging set to `WARN` and `MONGODB_URI` pointed at loopback:
+
+| Module command | Result |
+| --- | --- |
+| `.\mvnw.cmd -q -pl auth-service -am test` | **3 tests**, 3 passed, 0 failures/errors. |
+| `.\mvnw.cmd -q -pl api-gateway -am test` | **5 tests**, 5 passed, 0 failures/errors. |
+| `.\mvnw.cmd -q -pl course-service -am test` | **6 tests**, 6 passed, 0 failures/errors. |
+
+The course test created a category, course, module and lesson through the HTTP API and rolled the writes back. Mockito's self-attachment warning persisted and did not fail any run. Java 17 runtime execution, MongoDB operations and a live registry/gateway smoke test remain unverified by these module tests.
