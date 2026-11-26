@@ -1,10 +1,13 @@
 package in.iamandroid.authservice.config;
 
+import in.iamandroid.authservice.security.ApiErrorResponseWriter;
 import in.iamandroid.authservice.security.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -21,6 +24,7 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
+    private final ApiErrorResponseWriter errorResponseWriter;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -42,7 +46,16 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health").permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .httpBasic(Customizer.withDefaults());
+                .httpBasic(Customizer.withDefaults())
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, exception) -> {
+                            response.setHeader(HttpHeaders.WWW_AUTHENTICATE, "Basic realm=\"lms\"");
+                            errorResponseWriter.write(request, response, HttpStatus.UNAUTHORIZED,
+                                    "UNAUTHENTICATED", "Authentication is required to access this resource.");
+                        })
+                        .accessDeniedHandler((request, response, exception) ->
+                                errorResponseWriter.write(request, response, HttpStatus.FORBIDDEN,
+                                        "FORBIDDEN", "You do not have permission to access this resource.")));
 
         return http.build();
     }

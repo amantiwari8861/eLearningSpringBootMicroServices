@@ -48,7 +48,44 @@ The root POM supplies the Eureka client to its six children. The gateway also im
 | `/api/v1/orders/**` | Any | `lb://ORDER-SERVICE` |
 | `/api/v1/ai/**` | Any | `lb://AI-SERVICE` |
 
-These path predicates select an upstream by service ID. The routes configure no prefix stripping, retry filter, or custom response format. The gateway forwards the original path. Public paths are `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `/actuator/**` and `GET /api/v1/courses/**`; other paths require Basic credentials that the gateway checks against auth-service before forwarding. Course writes and order requests therefore still require authentication. The configured upstream connect timeout is 5,000 ms and the response timeout is 30 seconds. A matching route can still fail when no instance is available, when validation rejects the request, or when the upstream has no matching handler. [Route definitions and HTTP client settings](../api-gateway/src/main/resources/application.properties)
+These path predicates select an upstream by service ID. The routes configure no prefix stripping or retry filter, and the gateway forwards the original path. Framework and identity failures are written by the gateway's global handlers rather than by a route-specific response filter. Public paths are `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `/actuator/**` and `GET /api/v1/courses/**`; other paths require Basic credentials that the gateway checks against auth-service before forwarding. Course writes and order requests therefore still require authentication. The configured upstream connect timeout is 5,000 ms and the response timeout is 30 seconds. A matching route can still fail when no instance is available, when validation rejects the request, or when the upstream has no matching handler. [Route definitions and HTTP client settings](../api-gateway/src/main/resources/application.properties)
+
+### Uniform error contract
+
+Auth, course, order, AI, notification and the gateway now write the same JSON body for handled errors:
+
+```json
+{
+  "timestamp": "2026-11-26T13:20:00Z",
+  "status": 400,
+  "code": "VALIDATION_FAILED",
+  "message": "email must be a well-formed email address; password size must be between 8 and 72",
+  "path": "/api/v1/auth/register",
+  "errors": [
+    { "field": "email", "message": "must be a well-formed email address" },
+    { "field": "password", "message": "size must be between 8 and 72" }
+  ]
+}
+```
+
+`message` is always present and carries a safe, human-readable sentence. `errors` is always present; it lists `{field, message}` pairs for bean and constraint validation and is an empty array for other failures. Validation also joins the field messages into `message`, which preserves the older BFF contract for browser clients. `path` is the request URI seen by the responding service or gateway, and `timestamp` is an ISO-8601 instant.
+
+| HTTP status | Codes used by the services |
+| --- | --- |
+| 400 | `VALIDATION_FAILED`, `INVALID_JSON`, `INVALID_PARAMETER`; gateway framework errors use `INVALID_REQUEST` |
+| 401 | `UNAUTHENTICATED`, `INVALID_CREDENTIALS`, `INVALID_IDENTITY` |
+| 403 | `FORBIDDEN` |
+| 404 | `RESOURCE_NOT_FOUND` |
+| 405 | `METHOD_NOT_ALLOWED` |
+| 409 | `CONSTRAINT_VIOLATION`, `DUPLICATE_RESOURCE`, `EMAIL_ALREADY_EXISTS` |
+| 415 | `UNSUPPORTED_MEDIA_TYPE` |
+| 500 | `INTERNAL_ERROR`; unmapped gateway framework errors use `UPSTREAM_ERROR` |
+| 503 | `UPSTREAM_UNAVAILABLE` from auth/order checks; gateway framework errors use `SERVICE_UNAVAILABLE` |
+| 504 | `GATEWAY_TIMEOUT` |
+
+Direct MVC `401` responses include `WWW-Authenticate: Basic realm="lms"` and the same JSON body; `403` responses use the same body. The gateway writes the same shape for missing routes, method/media-type failures and unhandled framework exceptions. Unhandled exceptions are logged with their stack trace; clients receive only the safe fallback message. [Auth handler](../auth-service/src/main/java/in/iamandroid/authservice/exception/GlobalExceptionHandler.java) · [Gateway handler](../api-gateway/src/main/java/in/iamandroid/apigateway/security/GatewayExceptionHandler.java) · [ADR 0003](adr/0003-uniform-error-contract.md)
+
+The separate frontend BFF keeps its established `{code, message}` response shape. For a handled upstream error it copies the upstream `code` and `message`; it does not expose `timestamp`, `path` or `errors[]`. Upstream `5xx` responses remain mapped to `502 UPSTREAM_ERROR` with a safe sentence. [Frontend gateway helper](../../iamandroid_lms_frontend/lib/server/gateway.js)
 
 ### Browser CORS
 
@@ -62,10 +99,10 @@ These path predicates select an upstream by service ID. The routes configure no 
 | Eureka registry | `GET /eureka/apps` on registry | Framework registry document. A client can request JSON using `Accept: application/json`. The process needs time to register and refresh after startup. |
 | Registry management | `GET /actuator/health`, `/actuator/info`, `/actuator/metrics` on registry | The registry packages Actuator, health and Micrometer metrics. Properties request these endpoints and set health details to `never`. Responses describe the application and meter state. |
 | Gateway management | `GET /actuator/health`, `/actuator/info`, `/actuator/metrics` on gateway | The gateway packages Actuator and exposes these endpoints. They are public because the identity filter treats `/actuator/**` as public. |
-| Auth registration | `POST /api/v1/auth/register` | Public. Accepts an email and password, encodes the password with BCrypt, assigns `ROLE_TRAINEE` and returns the created user. |
+| Auth registration | `POST /api/v1/auth/register` | Public. Accepts a name, email and password, encodes the password with BCrypt, assigns `ROLE_TRAINEE` and returns the created user. |
 | Auth login | `POST /api/v1/auth/login` | Public. Checks the supplied email and password with the Spring Security authentication manager and returns the same user payload. Invalid credentials return `401` with `INVALID_CREDENTIALS`; no token or session is created. |
 | Auth current user | `GET /api/v1/auth/me` | Requires HTTP Basic authentication and returns the caller's id, email, roles and enabled flag. |
-| Gateway identity headers | Any routed request that is not listed as public | Requires HTTP Basic authentication. Missing/invalid credentials or an unusable `/me` payload receive `401`; errors from the downstream service propagate unchanged. Valid identity produces `X-User-Id`, `X-User-Email` and `X-User-Roles` headers for non-auth routes. Client-supplied identity headers are always removed; Basic credentials are removed from public and non-auth routes but preserved on protected auth routes. |
+| Gateway identity headers | Any routed request that is not listed as public | Requires HTTP Basic authentication. Missing credentials return `401 UNAUTHENTICATED`; rejected credentials return `401 INVALID_CREDENTIALS`; an unusable `/me` payload returns `401 INVALID_IDENTITY`; an auth-service outage returns `503 UPSTREAM_UNAVAILABLE`. All four use the uniform error body. Valid identity produces `X-User-Id`, `X-User-Email` and `X-User-Roles` headers for non-auth routes. Client-supplied identity headers are always removed; Basic credentials are removed from public and non-auth routes but preserved on protected auth routes. |
 
 No JWT or SSO is implemented. HTTP Basic is the local development credential transport; a production design should replace it with a token issued by a trusted identity provider. Course and order trust only the identity headers injected by the gateway, so their direct ports are not an external authorization boundary. The registry uses HTTP and has no repository-defined access policy. [Auth security configuration](../auth-service/src/main/java/in/iamandroid/authservice/config/SecurityConfig.java) · [Gateway identity filter](../api-gateway/src/main/java/in/iamandroid/apigateway/security/AuthHeadersGatewayFilter.java) · [Course security configuration](../course-service/src/main/java/in/iamandroid/course/config/SecurityConfig.java) · [Registry settings](../eureka-server/src/main/resources/application.properties)
 
@@ -82,7 +119,7 @@ No JWT or SSO is implemented. HTTP Basic is the local development credential tra
 | `POST /api/v1/courses/{courseId}/modules` | `ROLE_ADMIN` or `ROLE_INSTRUCTOR` | Adds a module at a unique position in the course. |
 | `POST /api/v1/courses/{courseId}/modules/{moduleId}/lessons` | `ROLE_ADMIN` or `ROLE_INSTRUCTOR` | Adds a lesson at a unique position in the module. |
 
-`GET /api/v1/courses` returns the 50 seeded published items: 38 with `type=COURSE` and 12 with `type=BLOG`. Catalogue responses add `category`, `subcategory`, `duration`, `rating`, `students`, `tags`, `image`, `courseUrl`, `featured` and `isGenerated` alongside the original fields; `image` is backed by the `thumbnail_url` column and tags by `course_tags`. The loader uses the slug as its idempotency key, so a restart does not duplicate existing records. Validation failures return `400` with `VALIDATION_FAILED`; missing identity returns `401` and insufficient role returns `403`. [Course controller](../course-service/src/main/java/in/iamandroid/course/controller/CourseController.java) · [Exception handler](../course-service/src/main/java/in/iamandroid/course/exception/GlobalExceptionHandler.java) · [Catalogue dataset](../course-service/src/main/resources/catalog/learning-data.json) · [Seed loader](../course-service/src/main/java/in/iamandroid/course/seed/CatalogDataLoader.java)
+`GET /api/v1/courses` returns the 50 seeded published items: 38 with `type=COURSE` and 12 with `type=BLOG`. Catalogue responses add `category`, `subcategory`, `duration`, `rating`, `students`, `tags`, `image`, `courseUrl`, `featured` and `isGenerated` alongside the original fields; `image` is backed by the `thumbnail_url` column and tags by `course_tags`. The loader uses the slug as its idempotency key, so a restart does not duplicate existing records. Validation failures return `400 VALIDATION_FAILED` with field errors; missing identity returns `401 UNAUTHENTICATED` and insufficient role returns `403 FORBIDDEN`, both with the uniform error body. [Course controller](../course-service/src/main/java/in/iamandroid/course/controller/CourseController.java) · [Exception handler](../course-service/src/main/java/in/iamandroid/course/exception/GlobalExceptionHandler.java) · [Catalogue dataset](../course-service/src/main/resources/catalog/learning-data.json) · [Seed loader](../course-service/src/main/java/in/iamandroid/course/seed/CatalogDataLoader.java)
 
 ## Learning HTTP contract
 
@@ -93,7 +130,7 @@ No JWT or SSO is implemented. HTTP Basic is the local development credential tra
 | `POST /api/v1/orders/lessons/{lessonId}/progress` | `ROLE_TRAINEE` or `ROLE_ADMIN` | Creates or updates one lesson's completion for the authenticated user's enrolment. |
 | `GET /api/v1/orders/courses/{courseId}/progress` | Authenticated | Returns completed lessons, total lessons and percentage for the authenticated user's enrolment. |
 
-`ProgressRequest` carries `courseId` and `completed`. Completing every lesson also sets the enrolment to `COMPLETED`. The total lesson count is read from `GET /api/v1/courses/{courseId}/lesson-count` at `lms.course-service-url`, defaulting to the local course-service port. The order service never exposes another trainee's progress because every lookup is keyed by the authenticated user id. [Learning controller](../order-service/src/main/java/in/iamandroid/order/controller/LearningController.java) · [Progress service](../order-service/src/main/java/in/iamandroid/order/service/ProgressService.java) · [Catalog client](../order-service/src/main/java/in/iamandroid/order/client/CourseCatalogClient.java)
+`ProgressRequest` carries `courseId` and `completed`. Completing every lesson also sets the enrolment to `COMPLETED`. The total lesson count is read from `GET /api/v1/courses/{courseId}/lesson-count` at `lms.course-service-url`, defaulting to the local course-service port. A failure from that upstream now returns `503 UPSTREAM_UNAVAILABLE` with the uniform error body instead of being reported as a missing resource. The order service never exposes another trainee's progress because every lookup is keyed by the authenticated user id. [Learning controller](../order-service/src/main/java/in/iamandroid/order/controller/LearningController.java) · [Progress service](../order-service/src/main/java/in/iamandroid/order/service/ProgressService.java) · [Catalog client](../order-service/src/main/java/in/iamandroid/order/client/CourseCatalogClient.java)
 
 ## Logging and monitoring
 

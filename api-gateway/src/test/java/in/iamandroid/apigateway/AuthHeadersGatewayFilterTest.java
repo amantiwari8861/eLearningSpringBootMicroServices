@@ -1,6 +1,9 @@
 package in.iamandroid.apigateway;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import in.iamandroid.apigateway.security.AuthHeadersGatewayFilter;
+import in.iamandroid.apigateway.security.GatewayErrorWriter;
 import org.junit.jupiter.api.Test;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.http.HttpHeaders;
@@ -25,6 +28,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AuthHeadersGatewayFilterTest {
 
     private static final String USER_ID = "197b7a63-5541-5052-88db-7a1eb783cd44";
+
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     @Test
     void validatesBasicCredentialsAndReplacesClientIdentityHeaders() {
@@ -62,7 +67,7 @@ class AuthHeadersGatewayFilterTest {
     }
 
     @Test
-    void rejectsRequestsWithoutBasicCredentials() {
+    void rejectsRequestsWithoutBasicCredentials() throws Exception {
         AuthHeadersGatewayFilter filter = filterWithAuthResponse(HttpStatus.OK, "{}");
         MockServerWebExchange exchange = MockServerWebExchange.from(
                 MockServerHttpRequest.get("/api/v1/orders/enrollments/me").build());
@@ -74,11 +79,12 @@ class AuthHeadersGatewayFilterTest {
         }).block();
 
         assertFalse(chainCalled.get());
-        assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
+        assertApiError(exchange, HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED",
+                "Authentication is required to access this resource.");
     }
 
     @Test
-    void rejectsInvalidCredentials() {
+    void rejectsInvalidCredentials() throws Exception {
         AuthHeadersGatewayFilter filter = filterWithAuthResponse(HttpStatus.UNAUTHORIZED, "{}");
         MockServerWebExchange exchange = MockServerWebExchange.from(
                 MockServerHttpRequest.get("/api/v1/orders/enrollments/me")
@@ -92,7 +98,24 @@ class AuthHeadersGatewayFilterTest {
         }).block();
 
         assertFalse(chainCalled.get());
-        assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
+        assertApiError(exchange, HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS",
+                "The supplied credentials were rejected.");
+    }
+
+    @Test
+    void reportsAuthServiceOutageAsUnavailable() throws Exception {
+        AuthHeadersGatewayFilter filter = filterWithAuthResponse(HttpStatus.SERVICE_UNAVAILABLE, "{}");
+        MockServerWebExchange exchange = exchangeWithBasicCredentials("/api/v1/orders/enrollments/me");
+        AtomicBoolean chainCalled = new AtomicBoolean(false);
+
+        filter.filter(exchange, next -> {
+            chainCalled.set(true);
+            return Mono.empty();
+        }).block();
+
+        assertFalse(chainCalled.get());
+        assertApiError(exchange, HttpStatus.SERVICE_UNAVAILABLE, "UPSTREAM_UNAVAILABLE",
+                "The authentication service is temporarily unavailable.");
     }
 
     @Test
@@ -116,7 +139,7 @@ class AuthHeadersGatewayFilterTest {
     }
 
     @Test
-    void coursePostStillRequiresCredentials() {
+    void coursePostStillRequiresCredentials() throws Exception {
         AuthHeadersGatewayFilter filter = filterWithAuthResponse(HttpStatus.OK, "{}");
         MockServerWebExchange exchange = MockServerWebExchange.from(
                 MockServerHttpRequest.post("/api/v1/courses").body("{}"));
@@ -128,7 +151,8 @@ class AuthHeadersGatewayFilterTest {
         }).block();
 
         assertFalse(chainCalled.get());
-        assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
+        assertApiError(exchange, HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED",
+                "Authentication is required to access this resource.");
     }
 
     @Test
@@ -210,7 +234,7 @@ class AuthHeadersGatewayFilterTest {
     }
 
     @Test
-    void identityWithoutIdOrEmailIsRejected() {
+    void identityWithoutIdOrEmailIsRejected() throws Exception {
         AuthHeadersGatewayFilter filter = filterWithAuthResponse(HttpStatus.OK, "{\"enabled\":true}");
         MockServerWebExchange exchange = exchangeWithBasicCredentials("/api/v1/orders/enrollments/me");
         AtomicBoolean chainCalled = new AtomicBoolean(false);
@@ -221,11 +245,12 @@ class AuthHeadersGatewayFilterTest {
         }).block();
 
         assertFalse(chainCalled.get());
-        assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
+        assertApiError(exchange, HttpStatus.UNAUTHORIZED, "INVALID_IDENTITY",
+                "The authenticated identity could not be used.");
     }
 
     @Test
-    void disabledIdentityIsRejected() {
+    void disabledIdentityIsRejected() throws Exception {
         AuthHeadersGatewayFilter filter = filterWithAuthResponse(HttpStatus.OK, identityBody(false));
         MockServerWebExchange exchange = exchangeWithBasicCredentials("/api/v1/orders/enrollments/me");
         AtomicBoolean chainCalled = new AtomicBoolean(false);
@@ -236,11 +261,12 @@ class AuthHeadersGatewayFilterTest {
         }).block();
 
         assertFalse(chainCalled.get());
-        assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
+        assertApiError(exchange, HttpStatus.UNAUTHORIZED, "INVALID_IDENTITY",
+                "The authenticated identity could not be used.");
     }
 
     @Test
-    void emptyAuthResponseIsRejected() {
+    void emptyAuthResponseIsRejected() throws Exception {
         AuthHeadersGatewayFilter filter = filterWithAuthResponse(HttpStatus.OK, "");
         MockServerWebExchange exchange = exchangeWithBasicCredentials("/api/v1/orders/enrollments/me");
         AtomicBoolean chainCalled = new AtomicBoolean(false);
@@ -251,7 +277,25 @@ class AuthHeadersGatewayFilterTest {
         }).block();
 
         assertFalse(chainCalled.get());
-        assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
+        assertApiError(exchange, HttpStatus.UNAUTHORIZED, "INVALID_IDENTITY",
+                "The authenticated identity could not be used.");
+    }
+
+    private void assertApiError(
+            MockServerWebExchange exchange,
+            HttpStatus status,
+            String code,
+            String message
+    ) throws Exception {
+        assertEquals(status, exchange.getResponse().getStatusCode());
+        assertEquals(MediaType.APPLICATION_JSON, exchange.getResponse().getHeaders().getContentType());
+        JsonNode body = objectMapper.readTree(exchange.getResponse().getBodyAsString().block());
+        assertEquals(status.value(), body.get("status").asInt());
+        assertEquals(code, body.get("code").asText());
+        assertEquals(message, body.get("message").asText());
+        assertEquals(exchange.getRequest().getPath().value(), body.get("path").asText());
+        assertTrue(body.hasNonNull("timestamp"));
+        assertTrue(body.get("errors").isArray());
     }
 
     private MockServerWebExchange exchangeWithBasicCredentials(String path) {
@@ -280,7 +324,8 @@ class AuthHeadersGatewayFilterTest {
 
         WebClient.Builder builder = WebClient.builder()
                 .exchangeFunction(request -> Mono.just(response));
+        GatewayErrorWriter errorWriter = new GatewayErrorWriter(objectMapper);
 
-        return new AuthHeadersGatewayFilter(builder, "http://localhost:8082");
+        return new AuthHeadersGatewayFilter(builder, "http://localhost:8082", errorWriter);
     }
 }

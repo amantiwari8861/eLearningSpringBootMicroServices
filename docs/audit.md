@@ -81,6 +81,7 @@ The statuses below supersede the baseline rows above only for the scoped changes
 | Completed | Real catalogue dataset | `course-service/src/main/resources/catalog/learning-data.json` contains 50 unique records: 38 `COURSE` and 12 `BLOG`, all `PUBLISHED`, with the supplied working image URLs. `CatalogDataLoader` saves them into `course_db` by slug on startup and skips existing slugs. `Course` adds type, category/subcategory, duration, rating, students, tags, image, course URL and featured/generated fields; `CourseApiIntegrationTest` now checks for at least 50 records and the `autocadtraining` type. |
 | Completed | Gateway browser CORS | A high-precedence `CorsWebFilter` answers `OPTIONS /api/v1/**` before Basic identity validation. Origins are explicit loopback ports `3000` and `5173` (overridable with `LMS_CORS_ALLOWED_ORIGINS`), with credentials, `GET`/`POST`/`OPTIONS`, three allowed headers and a 3,600-second max age. `ApiGatewayApplicationTests` verifies a `200` preflight and the allow-origin/credentials headers. |
 | Completed | Frontend catalogue rendering | The separate `iamandroid_lms_frontend` renders seeded images, badges, categories, tags, duration, rating, students and generated markers from the enriched API response. Detail-page metadata and remote image patterns were added; `npm run build` compiles and generates all routes successfully. |
+| Completed | Uniform error contract | Auth, course, order, AI, notification and gateway handlers now return `timestamp`, `status`, `code`, `message`, `path` and `errors[]`. Validation fills `errors[]`; security and framework failures use safe codes and sentences. Gateway auth outcomes distinguish unauthenticated, invalid credentials, invalid identity and auth-service outage. Order catalogue failures return `503`. [API contract](architecture.md#uniform-error-contract) · [ADR 0003](adr/0003-uniform-error-contract.md) |
 
 ### Verification command and result
 
@@ -124,3 +125,19 @@ $env:EUREKA_CLIENT_FETCH_REGISTRY='false'
 ```
 
 Result: **BUILD SUCCESS**; 20 tests ran with 0 failures, 0 errors and 0 skips (14 gateway, 6 course-service). The course API test observed at least 50 catalogue records including `autocadtraining` with `type=COURSE`; the gateway preflight test received `200 OK` with `Access-Control-Allow-Origin: http://localhost:3000` and `Access-Control-Allow-Credentials: true`. The unused MongoDB client logged a loopback connection refusal without affecting the JPA-backed catalogue. From the separate frontend repository, `npm run build` compiled successfully and generated all routes. Direct browser CORS was verified at the gateway layer; the frontend BFF proxy path remains the normal browser flow.
+
+### Error-contract verification (2026-11-26)
+
+Windows PowerShell, from the repository root, with Eureka registration/fetching disabled, root logging set to `WARN`, and `MONGODB_URI` pointed at loopback:
+
+```powershell
+$env:EUREKA_CLIENT_REGISTER_WITH_EUREKA='false'
+$env:EUREKA_CLIENT_FETCH_REGISTRY='false'
+$env:LOGGING_LEVEL_ROOT='WARN'
+$env:MONGODB_URI='mongodb://127.0.0.1:27017/course_db'
+.\mvnw.cmd -fae verify
+```
+
+Result: all **8 reactor modules** succeeded; **44 tests** ran with 0 failures, 0 errors and 0 skips. The gateway suite has 17 tests, including new assertions for missing routes and unhandled framework exceptions. Auth, course and order tests assert the full error shape for validation, malformed JSON, unauthenticated/forbidden requests, duplicate data and upstream catalogue failure. AI and notification compiled and loaded with the new handlers, but still have no business endpoints to exercise through HTTP. Eureka connection warnings and the loopback MongoDB refusal appeared while the registry and MongoDB were intentionally unavailable; neither failed a module.
+
+The separate frontend has no checked-in JavaScript/TypeScript test harness. Its BFF was inspected rather than changed: it still returns `{code, message}` to browser routes and copies the upstream human-readable `message` for handled `4xx` failures. Upstream `5xx` responses remain deliberately collapsed to `502 UPSTREAM_ERROR`, so the new gateway `503` body is not exposed verbatim through that path.

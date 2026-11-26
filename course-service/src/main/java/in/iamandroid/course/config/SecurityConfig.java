@@ -1,9 +1,11 @@
 package in.iamandroid.course.config;
 
+import in.iamandroid.course.security.ApiErrorResponseWriter;
 import in.iamandroid.course.security.IdentityHeaderAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -18,6 +20,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final IdentityHeaderAuthenticationFilter identityHeaderFilter;
+    private final ApiErrorResponseWriter errorResponseWriter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -38,10 +41,14 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .httpBasic(basic -> basic.disable())
                 .exceptionHandling(exceptions -> exceptions
-                        .authenticationEntryPoint((request, response, exception) ->
-                                response.setStatus(HttpStatus.UNAUTHORIZED.value()))
+                        .authenticationEntryPoint((request, response, exception) -> {
+                            response.setHeader(HttpHeaders.WWW_AUTHENTICATE, "Basic realm=\"lms\"");
+                            errorResponseWriter.write(request, response, HttpStatus.UNAUTHORIZED,
+                                    "UNAUTHENTICATED", "Authentication is required to access this resource.");
+                        })
                         .accessDeniedHandler((request, response, exception) ->
-                                response.setStatus(HttpStatus.FORBIDDEN.value())));
+                                errorResponseWriter.write(request, response, HttpStatus.FORBIDDEN,
+                                        "FORBIDDEN", "You do not have permission to perform this action.")));
 
         return http.build();
     }

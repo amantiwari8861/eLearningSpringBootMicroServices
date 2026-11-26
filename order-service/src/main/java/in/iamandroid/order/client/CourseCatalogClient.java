@@ -1,7 +1,7 @@
 package in.iamandroid.order.client;
 
 import in.iamandroid.order.dto.LessonCountResponse;
-import in.iamandroid.order.exception.ResourceNotFoundException;
+import in.iamandroid.order.exception.UpstreamUnavailableException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -27,7 +27,7 @@ public class CourseCatalogClient {
                     courseId);
             return response == null ? 0 : response.lessonCount();
         } catch (RestClientException exception) {
-            throw new ResourceNotFoundException("Course catalog is unavailable for progress calculation");
+            throw new UpstreamUnavailableException("The course catalogue is unavailable for progress calculation");
         }
     }
 }
