@@ -1,6 +1,7 @@
 package in.iamandroid.course;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import in.iamandroid.course.constants.CatalogItemType;
 import in.iamandroid.course.constants.CourseLevel;
 import in.iamandroid.course.constants.CourseStatus;
 import in.iamandroid.course.constants.LessonType;
@@ -19,8 +20,12 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -42,7 +47,9 @@ class CourseApiIntegrationTest {
     @Test
     void publicCatalogueIsReadable() throws Exception {
         mockMvc.perform(get("/api/v1/courses"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(greaterThanOrEqualTo(50)))
+                .andExpect(jsonPath("$[?(@.slug=='autocadtraining')].type").value(hasItem("COURSE")));
     }
 
     @Test
@@ -91,7 +98,16 @@ class CourseApiIntegrationTest {
                 null,
                 new BigDecimal("49.00"),
                 CourseLevel.BEGINNER,
-                CourseStatus.PUBLISHED
+                CourseStatus.PUBLISHED,
+                CatalogItemType.COURSE,
+                "Backend",
+                "3 Months",
+                new BigDecimal("4.5"),
+                10L,
+                List.of("integration"),
+                "/courses/" + courseSlug,
+                true,
+                true
         );
 
         MvcResult courseResult = mockMvc.perform(post("/api/v1/courses")
@@ -102,6 +118,17 @@ class CourseApiIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.instructorUserId").value(INSTRUCTOR_ID))
                 .andExpect(jsonPath("$.categoryId").value(categoryId))
+                .andExpect(jsonPath("$.type").value("COURSE"))
+                .andExpect(jsonPath("$.category").value("Course Test " + suffix))
+                .andExpect(jsonPath("$.subcategory").value("Backend"))
+                .andExpect(jsonPath("$.duration").value("3 Months"))
+                .andExpect(jsonPath("$.rating").value(4.5))
+                .andExpect(jsonPath("$.students").value(10))
+                .andExpect(jsonPath("$.tags[0]").value("integration"))
+                .andExpect(jsonPath("$.image").value(nullValue()))
+                .andExpect(jsonPath("$.courseUrl").value("/courses/" + courseSlug))
+                .andExpect(jsonPath("$.featured").value(true))
+                .andExpect(jsonPath("$.isGenerated").value(true))
                 .andReturn();
 
         String courseId = idFrom(courseResult);

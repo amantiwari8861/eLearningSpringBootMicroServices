@@ -39,7 +39,8 @@ For course, start a local MongoDB instance on port `27017`. For example, start `
 | `SERVER_PORT` | All seven modules | Explicit placeholder overriding that module's HTTP port. Set individually when changing ports. |
 | `EUREKA_HOSTNAME` | Eureka server | Explicit placeholder. Defaults to `localhost` and contributes to the server's advertised registry URL. |
 | `EUREKA_SERVER_URL` | Six clients, including gateway | Explicit placeholder. Defaults to `http://localhost:8761/eureka/`. Update clients when the registry address changes. |
-| `MONGODB_URI` | Course | Explicit placeholder for `spring.mongodb.uri`. Use a local URI matching your MongoDB authentication settings. |
+| `LMS_CORS_ALLOWED_ORIGINS` | Gateway | Comma-separated browser origins allowed for `/api/v1/**`. Defaults to loopback ports `3000` and `5173`; keep explicit origins when credentials are used. |
+| `MONGODB_URI` | Course | Explicit placeholder for `spring.mongodb.uri`. Use a local URI matching your MongoDB authentication settings; supply hosted provider URIs through the environment, not project files. |
 | `POSTGRES_USER`, `POSTGRES_PASSWORD` | Auth, course, order, AI | Placeholders used by the datasource properties. The checked-in values are development fallbacks only; override them in the terminal for any shared environment. Standard Spring datasource overrides continue to work. |
 | `SPRING_DATASOURCE_URL` | Auth, course, order | Standard Spring override for the JDBC URL. Scope to **one service** when overriding. Leaving it unset preserves distinct database names during a reactor test. |
 
@@ -70,7 +71,9 @@ export MONGODB_URI='mongodb://127.0.0.1:27017/course_db'
 | Test one module and required reactor projects | `.\mvnw.cmd -pl course-service -am test` | `sh ./mvnw -pl course-service -am test` |
 | Package and test the applications | `.\mvnw.cmd package` | `sh ./mvnw package` |
 
-Every module has one JUnit Jupiter `@SpringBootTest` with an empty `contextLoads()` body. A pass confirms that the application context started with the configuration used for that run. There are no test-specific datastore fixtures or profiles in module sources. Set the local datasource and MongoDB overrides before running the full suite. Surefire writes per-module results to `<module>/target/surefire-reports/`. A package produced with `-DskipTests` does not validate startup.
+Every module has a JUnit Jupiter `@SpringBootTest` context check. Auth, gateway, course and order also have HTTP integration tests for registration/login, identity-header handling and CORS preflight, catalogue reads/writes, and enrolment/progress flows. Course tests assert that the startup loader has made at least 50 published catalogue items available. There are no test-specific datastore profiles in module sources, so set the local datasource and MongoDB overrides before running the full suite. Surefire writes per-module results to `<module>/target/surefire-reports/`. A package produced with `-DskipTests` does not validate startup.
+
+Starting course-service runs `CatalogDataLoader` from `catalog/learning-data.json` after Hibernate schema update. It saves missing categories and catalogue items keyed by slug, so restarts do not duplicate the dataset; `init.sql` still provides the original dummy seed. Use a disposable `course_db` when trying new catalogue data because existing slugs are left unchanged.
 
 ## Postman collection
 
@@ -102,7 +105,8 @@ Repeat the command in a new terminal with the desired module name. After packagi
 | --- | --- |
 | Maven cannot resolve the wrapper, parent or BOM | Inspect the first failing artifact URL, local Maven cache, mirror/proxy settings and the JDK shown by `-version`. A download failure precedes compilation and tests. |
 | A JPA context fails to start | Check that the correct database exists and the development login can connect. The current JPA configuration requests `ddl-auto=update`, so use isolated development databases. |
-| Course logs MongoDB connection or DNS errors | Verify `MONGODB_URI` is set in this process, the host/port is reachable, and MongoDB credentials match the URI. |
+| Course logs MongoDB connection or DNS errors | Verify `MONGODB_URI` is set in this process, the host/port is reachable, and MongoDB credentials match the URI. MongoDB is not used by the JPA catalogue seed. |
+| Browser preflight receives `403` or no CORS headers | Confirm the request uses an allowed `Origin` and is under `/api/v1/**`, and check `LMS_CORS_ALLOWED_ORIGINS`. Tests must use an absolute request URI because Spring 7.1 validates same-origin against the actual request URI. |
 | Service registration fails or a gateway route has no healthy instance | Check `EUREKA_SERVER_URL`, server port and actual service name in Eureka. The [architecture reference](architecture.md) distinguishes gateway forwarding rules from implemented endpoints. |
 | A process cannot bind its port | Check for another instance. Stop the intended local process or change its `SERVER_PORT` in that terminal. |
 | An expected metric or health endpoint is missing | The properties request `health,info,metrics,prometheus` and an application tag. Endpoint availability depends on the resolved Actuator and registry libraries. Inspect the module's dependency tree and startup output. The repository supplies no Prometheus scrape configuration or Grafana provisioning. |

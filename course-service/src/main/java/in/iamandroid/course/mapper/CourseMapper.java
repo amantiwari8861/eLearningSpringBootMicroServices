@@ -16,9 +16,13 @@ public interface CourseMapper {
 
     @Mapping(target = "category", ignore = true)
     @Mapping(target = "modules", ignore = true)
+    @Mapping(target = "generated", source = "isGenerated")
     Course toEntity(CourseRequest request);
 
     @Mapping(target = "categoryId", source = "category.id")
     @Mapping(target = "categorySlug", source = "category.slug")
+    @Mapping(target = "category", source = "category.name")
+    @Mapping(target = "image", source = "thumbnailUrl")
+    @Mapping(target = "isGenerated", source = "generated")
     CourseResponse toResponse(Course course);
 }

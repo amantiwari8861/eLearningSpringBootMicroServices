@@ -1,5 +1,6 @@
 package in.iamandroid.course.service;
 
+import in.iamandroid.course.constants.CatalogItemType;
 import in.iamandroid.course.constants.CourseLevel;
 import in.iamandroid.course.constants.CourseStatus;
 import in.iamandroid.course.dto.CategoryRequest;
@@ -29,6 +30,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -112,6 +115,21 @@ public class CourseCatalogService {
         }
         if (course.getLevel() == null) {
             course.setLevel(CourseLevel.BEGINNER);
+        }
+        if (course.getType() == null) {
+            course.setType(CatalogItemType.COURSE);
+        }
+        if (course.getRating() == null) {
+            course.setRating(BigDecimal.ZERO);
+        }
+        if (course.getStudents() == null) {
+            course.setStudents(0L);
+        }
+        if (course.getTags() == null) {
+            course.setTags(new ArrayList<>());
+        }
+        if (course.getCourseUrl() == null || course.getCourseUrl().isBlank()) {
+            course.setCourseUrl("/courses/" + slug);
         }
 
         return courseMapper.toResponse(courseRepository.save(course));

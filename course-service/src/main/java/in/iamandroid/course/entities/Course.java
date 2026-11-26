@@ -1,5 +1,6 @@
 package in.iamandroid.course.entities;
 
+import in.iamandroid.course.constants.CatalogItemType;
 import in.iamandroid.course.constants.CourseLevel;
 import in.iamandroid.course.constants.CourseStatus;
 import jakarta.persistence.*;
@@ -31,10 +32,48 @@ public class Course extends BaseEntity {
     @Column(length = 10000)
     private String description;
 
+    @Column(length = 2048)
     private String thumbnailUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20, columnDefinition = "varchar(20) default 'COURSE'")
+    private CatalogItemType type = CatalogItemType.COURSE;
+
+    @Column(length = 150)
+    private String subcategory;
+
+    @Column(length = 100)
+    private String duration;
 
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal price;
+
+    @Column(precision = 3, scale = 2)
+    private BigDecimal rating;
+
+    @Column
+    private Long students;
+
+    @Column(length = 2048)
+    private String courseUrl;
+
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean featured;
+
+    @Column(name = "is_generated", nullable = false, columnDefinition = "boolean default false")
+    private boolean generated;
+
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(
+            name = "course_tags",
+            joinColumns = @JoinColumn(name = "course_id"),
+            uniqueConstraints = @UniqueConstraint(
+                    name = "uk_course_tag",
+                    columnNames = {"course_id", "tag"}
+            )
+    )
+    @Column(name = "tag", nullable = false, length = 80)
+    private List<String> tags = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     private CourseLevel level;
