@@ -5,6 +5,7 @@ import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
@@ -39,7 +40,7 @@ public class AuthHeadersGatewayFilter implements GlobalFilter, Ordered {
         ServerHttpRequest request = sanitizedExchange.getRequest();
         String path = request.getPath().value();
 
-        if (isPublicPath(path)) {
+        if (isPublicPath(path, request.getMethod())) {
             return chain.filter(withoutForwardedAuthorization(sanitizedExchange));
         }
 
@@ -74,10 +75,12 @@ public class AuthHeadersGatewayFilter implements GlobalFilter, Ordered {
         return Ordered.HIGHEST_PRECEDENCE;
     }
 
-    private boolean isPublicPath(String path) {
+    private boolean isPublicPath(String path, HttpMethod method) {
         return path.equals("/api/v1/auth/register")
                 || path.equals("/api/v1/auth/login")
-                || path.startsWith("/actuator/");
+                || path.startsWith("/actuator/")
+                || (method == HttpMethod.GET
+                        && (path.equals("/api/v1/courses") || path.startsWith("/api/v1/courses/")));
     }
 
     private ServerWebExchange withoutClientIdentityHeaders(ServerWebExchange exchange) {

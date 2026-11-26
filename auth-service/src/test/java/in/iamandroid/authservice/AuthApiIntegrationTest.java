@@ -9,6 +9,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
@@ -46,6 +47,23 @@ class AuthApiIntegrationTest {
         mockMvc.perform(get("/api/v1/auth/me").with(httpBasic(email, "password123")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(email));
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void basicAuthenticationWorksWithoutATestTransaction() throws Exception {
+        String email = "basic-" + UUID.randomUUID() + "@example.invalid";
+        String body = objectMapper.writeValueAsString(new RegisterRequest(email, "password123"));
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/auth/me").with(httpBasic(email, "password123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value(email))
+                .andExpect(jsonPath("$.roles[0]").value("ROLE_TRAINEE"));
     }
 
     @Test

@@ -39,7 +39,7 @@ class AuthHeadersGatewayFilterTest {
 
         AuthHeadersGatewayFilter filter = filterWithAuthResponse(HttpStatus.OK, authResponse);
         MockServerWebExchange exchange = MockServerWebExchange.from(
-                MockServerHttpRequest.get("/api/v1/courses")
+                MockServerHttpRequest.get("/api/v1/orders/enrollments/me")
                         .header(HttpHeaders.AUTHORIZATION, "Basic dXNlcjpwYXNz")
                         .header(AuthHeadersGatewayFilter.USER_ID_HEADER, "spoofed")
                         .build());
@@ -65,7 +65,7 @@ class AuthHeadersGatewayFilterTest {
     void rejectsRequestsWithoutBasicCredentials() {
         AuthHeadersGatewayFilter filter = filterWithAuthResponse(HttpStatus.OK, "{}");
         MockServerWebExchange exchange = MockServerWebExchange.from(
-                MockServerHttpRequest.get("/api/v1/courses").build());
+                MockServerHttpRequest.get("/api/v1/orders/enrollments/me").build());
         AtomicBoolean chainCalled = new AtomicBoolean(false);
 
         filter.filter(exchange, next -> {
@@ -81,9 +81,45 @@ class AuthHeadersGatewayFilterTest {
     void rejectsInvalidCredentials() {
         AuthHeadersGatewayFilter filter = filterWithAuthResponse(HttpStatus.UNAUTHORIZED, "{}");
         MockServerWebExchange exchange = MockServerWebExchange.from(
-                MockServerHttpRequest.get("/api/v1/courses")
+                MockServerHttpRequest.get("/api/v1/orders/enrollments/me")
                         .header(HttpHeaders.AUTHORIZATION, "Basic dXNlcjp3cm9uZw==")
                         .build());
+        AtomicBoolean chainCalled = new AtomicBoolean(false);
+
+        filter.filter(exchange, next -> {
+            chainCalled.set(true);
+            return Mono.empty();
+        }).block();
+
+        assertFalse(chainCalled.get());
+        assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
+    }
+
+    @Test
+    void publicCourseGetDoesNotRequireCredentials() {
+        AuthHeadersGatewayFilter filter = filterWithAuthResponse(HttpStatus.OK, "{}");
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+                MockServerHttpRequest.get("/api/v1/courses")
+                        .header(HttpHeaders.AUTHORIZATION, "Basic dXNlcjpwYXNz")
+                        .header(AuthHeadersGatewayFilter.USER_ID_HEADER, "spoofed")
+                        .build());
+        AtomicReference<ServerWebExchange> forwarded = new AtomicReference<>();
+
+        filter.filter(exchange, next -> {
+            forwarded.set(next);
+            return Mono.empty();
+        }).block();
+
+        assertNull(forwarded.get().getRequest().getHeaders().getFirst(AuthHeadersGatewayFilter.USER_ID_HEADER));
+        assertNull(forwarded.get().getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION));
+        assertEquals("/api/v1/courses", forwarded.get().getRequest().getPath().value());
+    }
+
+    @Test
+    void coursePostStillRequiresCredentials() {
+        AuthHeadersGatewayFilter filter = filterWithAuthResponse(HttpStatus.OK, "{}");
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+                MockServerHttpRequest.post("/api/v1/courses").body("{}"));
         AtomicBoolean chainCalled = new AtomicBoolean(false);
 
         filter.filter(exchange, next -> {
@@ -141,7 +177,7 @@ class AuthHeadersGatewayFilterTest {
     void downstreamFailureIsNotReportedAsUnauthorized() {
         AuthHeadersGatewayFilter filter = filterWithAuthResponse(HttpStatus.OK, identityBody(true));
         MockServerWebExchange exchange = MockServerWebExchange.from(
-                MockServerHttpRequest.get("/api/v1/courses")
+                MockServerHttpRequest.get("/api/v1/orders/enrollments/me")
                         .header(HttpHeaders.AUTHORIZATION, "Basic dXNlcjpwYXNz")
                         .build());
 
@@ -176,7 +212,7 @@ class AuthHeadersGatewayFilterTest {
     @Test
     void identityWithoutIdOrEmailIsRejected() {
         AuthHeadersGatewayFilter filter = filterWithAuthResponse(HttpStatus.OK, "{\"enabled\":true}");
-        MockServerWebExchange exchange = exchangeWithBasicCredentials("/api/v1/courses");
+        MockServerWebExchange exchange = exchangeWithBasicCredentials("/api/v1/orders/enrollments/me");
         AtomicBoolean chainCalled = new AtomicBoolean(false);
 
         filter.filter(exchange, next -> {
@@ -191,7 +227,7 @@ class AuthHeadersGatewayFilterTest {
     @Test
     void disabledIdentityIsRejected() {
         AuthHeadersGatewayFilter filter = filterWithAuthResponse(HttpStatus.OK, identityBody(false));
-        MockServerWebExchange exchange = exchangeWithBasicCredentials("/api/v1/courses");
+        MockServerWebExchange exchange = exchangeWithBasicCredentials("/api/v1/orders/enrollments/me");
         AtomicBoolean chainCalled = new AtomicBoolean(false);
 
         filter.filter(exchange, next -> {
@@ -206,7 +242,7 @@ class AuthHeadersGatewayFilterTest {
     @Test
     void emptyAuthResponseIsRejected() {
         AuthHeadersGatewayFilter filter = filterWithAuthResponse(HttpStatus.OK, "");
-        MockServerWebExchange exchange = exchangeWithBasicCredentials("/api/v1/courses");
+        MockServerWebExchange exchange = exchangeWithBasicCredentials("/api/v1/orders/enrollments/me");
         AtomicBoolean chainCalled = new AtomicBoolean(false);
 
         filter.filter(exchange, next -> {
