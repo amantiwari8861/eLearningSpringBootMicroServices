@@ -1,0 +1,615 @@
+{
+  "info": {
+    "_postman_id": "9c4b7e21-3a58-4d6f-8b02-1e7c5a9d3f64",
+    "name": "LMS Local API",
+    "description": "Requests for the implemented small LMS. Run through the gateway on {{gatewayBaseUrl}}. Start Eureka, auth-service, course-service, order-service and api-gateway first. Import the companion environment, then set basicPassword (shared by the seeded admin, instructor and trainee accounts) and newUserPassword locally; no passwords are stored in these files. Course reads and auth register/login are public. Course writes use instructor credentials. Order requests use trainee credentials. The AI and notification folders document services that currently have no application endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "item": [
+    {
+      "name": "Gateway",
+      "description": "Gateway-served management endpoints. The gateway identity filter treats /actuator/** as public.",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/actuator/health",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["actuator", "health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/actuator/info",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["actuator", "info"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/actuator/metrics",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["actuator", "metrics"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth Service",
+      "description": "Identity API. Public registration and login do not send Basic credentials; /me does.",
+      "item": [
+        {
+          "name": "Users",
+          "item": [
+            {
+              "name": "Register Trainee",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "auth": { "type": "noauth" },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{newUserEmail}}\",\n  \"password\": \"{{newUserPassword}}\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{gatewayBaseUrl}}/api/v1/auth/register",
+                  "host": ["{{gatewayBaseUrl}}"],
+                  "path": ["api", "v1", "auth", "register"]
+                },
+                "description": "Creates a trainee account with a BCrypt password hash. Change newUserEmail after a successful run; a repeat with the same email returns 409."
+              },
+              "response": []
+            },
+            {
+              "name": "Login (Seed Trainee)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "auth": { "type": "noauth" },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{traineeEmail}}\",\n  \"password\": \"{{basicPassword}}\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{gatewayBaseUrl}}/api/v1/auth/login",
+                  "host": ["{{gatewayBaseUrl}}"],
+                  "path": ["api", "v1", "auth", "login"]
+                },
+                "description": "Checks credentials and returns the user payload. Invalid credentials return 401 INVALID_CREDENTIALS."
+              },
+              "response": []
+            },
+            {
+              "name": "Login (New Trainee)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "auth": { "type": "noauth" },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{newUserEmail}}\",\n  \"password\": \"{{newUserPassword}}\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{gatewayBaseUrl}}/api/v1/auth/login",
+                  "host": ["{{gatewayBaseUrl}}"],
+                  "path": ["api", "v1", "auth", "login"]
+                },
+                "description": "Use after Register Trainee."
+              },
+              "response": []
+            },
+            {
+              "name": "Current User",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "auth": {
+                  "type": "basic",
+                  "basic": [
+                    { "key": "username", "value": "{{traineeEmail}}", "type": "string" },
+                    { "key": "password", "value": "{{basicPassword}}", "type": "string" }
+                  ]
+                },
+                "url": {
+                  "raw": "{{gatewayBaseUrl}}/api/v1/auth/me",
+                  "host": ["{{gatewayBaseUrl}}"],
+                  "path": ["api", "v1", "auth", "me"]
+                },
+                "description": "Requires HTTP Basic. The gateway calls this endpoint to validate credentials before forwarding identity headers."
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Course Service",
+      "description": "Catalogue API. GET endpoints are public; POST endpoints require ROLE_ADMIN or ROLE_INSTRUCTOR from the gateway identity headers.",
+      "item": [
+        {
+          "name": "Categories",
+          "item": [
+            {
+              "name": "List Categories",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "auth": { "type": "noauth" },
+                "url": {
+                  "raw": "{{gatewayBaseUrl}}/api/v1/courses/categories",
+                  "host": ["{{gatewayBaseUrl}}"],
+                  "path": ["api", "v1", "courses", "categories"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Create Category (Instructor)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "auth": {
+                  "type": "basic",
+                  "basic": [
+                    { "key": "username", "value": "{{instructorEmail}}", "type": "string" },
+                    { "key": "password", "value": "{{basicPassword}}", "type": "string" }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Postman Category\",\n  \"slug\": \"postman-category-{{$timestamp}}\",\n  \"description\": \"Created from the Postman collection\",\n  \"imageUrl\": null,\n  \"active\": true\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{gatewayBaseUrl}}/api/v1/courses/categories",
+                  "host": ["{{gatewayBaseUrl}}"],
+                  "path": ["api", "v1", "courses", "categories"]
+                },
+                "description": "Stores the new category id in the categoryId environment variable."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('category created', function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "if (pm.response.code === 201) {",
+                      "    pm.environment.set('categoryId', pm.response.json().id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Courses",
+          "item": [
+            {
+              "name": "List Courses",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "auth": { "type": "noauth" },
+                "url": {
+                  "raw": "{{gatewayBaseUrl}}/api/v1/courses",
+                  "host": ["{{gatewayBaseUrl}}"],
+                  "path": ["api", "v1", "courses"]
+                },
+                "description": "Returns courses with nested modules and lessons."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Course By Slug",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "auth": { "type": "noauth" },
+                "url": {
+                  "raw": "{{gatewayBaseUrl}}/api/v1/courses/{{courseSlug}}",
+                  "host": ["{{gatewayBaseUrl}}"],
+                  "path": ["api", "v1", "courses", "{{courseSlug}}"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Lesson Count",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "auth": { "type": "noauth" },
+                "url": {
+                  "raw": "{{gatewayBaseUrl}}/api/v1/courses/{{courseId}}/lesson-count",
+                  "host": ["{{gatewayBaseUrl}}"],
+                  "path": ["api", "v1", "courses", "{{courseId}}", "lesson-count"]
+                },
+                "description": "Read by order-service when calculating progress percentages."
+              },
+              "response": []
+            },
+            {
+              "name": "Create Course (Instructor)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "auth": {
+                  "type": "basic",
+                  "basic": [
+                    { "key": "username", "value": "{{instructorEmail}}", "type": "string" },
+                    { "key": "password", "value": "{{basicPassword}}", "type": "string" }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"title\": \"Postman Course\",\n  \"slug\": \"postman-course-{{$timestamp}}\",\n  \"description\": \"Created from the Postman collection\",\n  \"thumbnailUrl\": null,\n  \"price\": 49.00,\n  \"level\": \"BEGINNER\",\n  \"status\": \"PUBLISHED\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{gatewayBaseUrl}}/api/v1/courses",
+                  "host": ["{{gatewayBaseUrl}}"],
+                  "path": ["api", "v1", "courses"]
+                },
+                "description": "Stores the new course id and slug in environment variables for the module, lesson and progress requests."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('course created', function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "if (pm.response.code === 201) {",
+                      "    var body = pm.response.json();",
+                      "    pm.environment.set('courseId', body.id);",
+                      "    pm.environment.set('courseSlug', body.slug);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Modules",
+          "item": [
+            {
+              "name": "Add Module (Instructor)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "auth": {
+                  "type": "basic",
+                  "basic": [
+                    { "key": "username", "value": "{{instructorEmail}}", "type": "string" },
+                    { "key": "password", "value": "{{basicPassword}}", "type": "string" }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Postman Module\",\n  \"description\": \"Created from the Postman collection\",\n  \"position\": 2\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{gatewayBaseUrl}}/api/v1/courses/{{courseId}}/modules",
+                  "host": ["{{gatewayBaseUrl}}"],
+                  "path": ["api", "v1", "courses", "{{courseId}}", "modules"]
+                },
+                "description": "Position 2 avoids a conflict with the seeded module at position 1. Stores the new module id in moduleId."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('module created', function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "if (pm.response.code === 201) {",
+                      "    pm.environment.set('moduleId', pm.response.json().id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Lessons",
+          "item": [
+            {
+              "name": "Add Lesson (Instructor)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "auth": {
+                  "type": "basic",
+                  "basic": [
+                    { "key": "username", "value": "{{instructorEmail}}", "type": "string" },
+                    { "key": "password", "value": "{{basicPassword}}", "type": "string" }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Postman Lesson\",\n  \"content\": \"Created from the Postman collection\",\n  \"videoUrl\": null,\n  \"resourceUrl\": null,\n  \"durationInSeconds\": 300,\n  \"position\": 1,\n  \"freePreview\": true,\n  \"type\": \"VIDEO\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{gatewayBaseUrl}}/api/v1/courses/{{courseId}}/modules/{{moduleId}}/lessons",
+                  "host": ["{{gatewayBaseUrl}}"],
+                  "path": ["api", "v1", "courses", "{{courseId}}", "modules", "{{moduleId}}", "lessons"]
+                },
+                "description": "Stores the new lesson id in lessonId for the progress request."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('lesson created', function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "if (pm.response.code === 201) {",
+                      "    pm.environment.set('lessonId', pm.response.json().id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Order Service",
+      "description": "Enrolment and progress API. Every lookup is keyed by the authenticated trainee id supplied by the gateway.",
+      "item": [
+        {
+          "name": "Enrollments",
+          "item": [
+            {
+              "name": "Enroll Trainee",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "auth": {
+                  "type": "basic",
+                  "basic": [
+                    { "key": "username", "value": "{{traineeEmail}}", "type": "string" },
+                    { "key": "password", "value": "{{basicPassword}}", "type": "string" }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"courseId\": \"{{courseId}}\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{gatewayBaseUrl}}/api/v1/orders/enrollments",
+                  "host": ["{{gatewayBaseUrl}}"],
+                  "path": ["api", "v1", "orders", "enrollments"]
+                },
+                "description": "A duplicate course for the same trainee returns 409. The seeded trainee is already enrolled in the seeded course."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('enrolment created', function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "if (pm.response.code === 201) {",
+                      "    pm.environment.set('enrollmentId', pm.response.json().id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "response": []
+            },
+            {
+              "name": "My Enrollments",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "auth": {
+                  "type": "basic",
+                  "basic": [
+                    { "key": "username", "value": "{{traineeEmail}}", "type": "string" },
+                    { "key": "password", "value": "{{basicPassword}}", "type": "string" }
+                  ]
+                },
+                "url": {
+                  "raw": "{{gatewayBaseUrl}}/api/v1/orders/enrollments/me",
+                  "host": ["{{gatewayBaseUrl}}"],
+                  "path": ["api", "v1", "orders", "enrollments", "me"]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Lesson Progress",
+          "item": [
+            {
+              "name": "Complete Lesson (Trainee)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "auth": {
+                  "type": "basic",
+                  "basic": [
+                    { "key": "username", "value": "{{traineeEmail}}", "type": "string" },
+                    { "key": "password", "value": "{{basicPassword}}", "type": "string" }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"courseId\": \"{{courseId}}\",\n  \"completed\": true\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{gatewayBaseUrl}}/api/v1/orders/lessons/{{lessonId}}/progress",
+                  "host": ["{{gatewayBaseUrl}}"],
+                  "path": ["api", "v1", "orders", "lessons", "{{lessonId}}", "progress"]
+                },
+                "description": "Requires an enrolment for the authenticated trainee and course. Set completed to false to undo a completion."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Course Progress",
+          "item": [
+            {
+              "name": "Get Course Progress",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "auth": {
+                  "type": "basic",
+                  "basic": [
+                    { "key": "username", "value": "{{traineeEmail}}", "type": "string" },
+                    { "key": "password", "value": "{{basicPassword}}", "type": "string" }
+                  ]
+                },
+                "url": {
+                  "raw": "{{gatewayBaseUrl}}/api/v1/orders/courses/{{courseId}}/progress",
+                  "host": ["{{gatewayBaseUrl}}"],
+                  "path": ["api", "v1", "orders", "courses", "{{courseId}}", "progress"]
+                },
+                "description": "Returns completed lessons, total lessons from course-service and the calculated percentage."
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Eureka Server",
+      "description": "Framework endpoints on the registry at {{eurekaBaseUrl}}. These are not gateway routes.",
+      "item": [
+        {
+          "name": "Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{eurekaBaseUrl}}/",
+              "host": ["{{eurekaBaseUrl}}"],
+              "path": [""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Applications",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{eurekaBaseUrl}}/eureka/apps",
+              "host": ["{{eurekaBaseUrl}}"],
+              "path": ["eureka", "apps"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{eurekaBaseUrl}}/actuator/health",
+              "host": ["{{eurekaBaseUrl}}"],
+              "path": ["actuator", "health"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "AI Service",
+      "description": "The gateway route /api/v1/ai/** exists, but this codebase has no AI controller or handler. No requests are defined rather than inventing an endpoint.",
+      "item": []
+    },
+    {
+      "name": "Notification Service",
+      "description": "Notification registers with Eureka on port 8084, but this codebase has no notification controller or handler. No requests are defined.",
+      "item": []
+    }
+  ]
+}
