@@ -39,6 +39,7 @@ public class AuthService {
 
         GenericUser user = new GenericUser();
         user.setEmail(normalizedEmail);
+        user.setName(request.name().trim());
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setEnabled(true);
         user.getRoles().add(getOrCreateRole(RoleName.ROLE_TRAINEE));

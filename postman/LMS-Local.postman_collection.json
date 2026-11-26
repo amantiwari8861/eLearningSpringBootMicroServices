@@ -74,7 +74,7 @@
                 "auth": { "type": "noauth" },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"email\": \"{{newUserEmail}}\",\n  \"password\": \"{{newUserPassword}}\"\n}",
+                  "raw": "{\n  \"name\": \"{{newUserName}}\",\n  \"email\": \"{{newUserEmail}}\",\n  \"password\": \"{{newUserPassword}}\"\n}",
                   "options": { "raw": { "language": "json" } }
                 },
                 "url": {

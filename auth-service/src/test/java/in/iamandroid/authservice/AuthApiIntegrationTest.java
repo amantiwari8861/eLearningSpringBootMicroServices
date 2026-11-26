@@ -43,12 +43,14 @@ class AuthApiIntegrationTest {
                         .content(body))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.email").value(email))
+                .andExpect(jsonPath("$.name").value("Test Trainee"))
                 .andExpect(jsonPath("$.roles[0]").value("ROLE_TRAINEE"))
                 .andExpect(jsonPath("$.enabled").value(true));
 
         mockMvc.perform(get("/api/v1/auth/me").with(httpBasic(email, "password123")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value(email));
+                .andExpect(jsonPath("$.email").value(email))
+                .andExpect(jsonPath("$.name").value("Test Trainee"));
     }
 
     @Test
@@ -65,6 +67,7 @@ class AuthApiIntegrationTest {
         mockMvc.perform(get("/api/v1/auth/me").with(httpBasic(email, "password123")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(email))
+                .andExpect(jsonPath("$.name").value("Test Trainee"))
                 .andExpect(jsonPath("$.roles[0]").value("ROLE_TRAINEE"));
     }
 
@@ -83,6 +86,7 @@ class AuthApiIntegrationTest {
                         .content(objectMapper.writeValueAsString(new LoginRequest(email, password))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(email))
+                .andExpect(jsonPath("$.name").value("Test Trainee"))
                 .andExpect(jsonPath("$.roles[0]").value("ROLE_TRAINEE"));
 
         mockMvc.perform(post("/api/v1/auth/login")
@@ -129,6 +133,7 @@ class AuthApiIntegrationTest {
                 .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
                 .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("email")))
                 .andExpect(jsonPath("$.errors.length()").value(3))
+                .andExpect(jsonPath("$.errors[*].field", org.hamcrest.Matchers.hasItem("name")))
                 .andExpect(jsonPath("$.errors[0].field").value("email"))
                 .andExpect(jsonPath("$.errors[0].message").isNotEmpty())
                 .andExpect(jsonPath("$.path").value("/api/v1/auth/register"));

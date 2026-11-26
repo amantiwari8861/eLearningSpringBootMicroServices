@@ -19,6 +19,9 @@ public class GenericUser {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(length = 100)
+    private String name;
+
     @Column(nullable = false)
     private String passwordHash;
 

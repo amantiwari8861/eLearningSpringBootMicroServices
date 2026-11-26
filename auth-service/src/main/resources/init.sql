@@ -13,21 +13,22 @@ INSERT INTO public.roles (id, name, description) VALUES
     ('2405e851-1e8c-5ca9-8d3b-d6dcc031a49e', 'ROLE_TRAINEE', 'Dummy trainee role')
 ON CONFLICT (name) DO NOTHING;
 
--- GenericUser entity: users(id uuid, email, password_hash, enabled).
+-- GenericUser entity: users(id uuid, email, name, password_hash, enabled).
 -- There is no username, password or role column in the entity model.
 -- Password hashes are BCrypt hashes of a local dummy password.
-INSERT INTO public.users (id, email, password_hash, enabled) VALUES
+INSERT INTO public.users (id, email, name, password_hash, enabled) VALUES
     ('b8f5f5a1-9b60-5a91-8f3e-6d5b3a2f1c77',
-     'dummy.validation+admin@example.invalid',
+     'dummy.validation+admin@example.invalid', 'Dummy Validation Admin',
      '$2a$10$/3YQ0.p61igqSLHJImAuk.x16nAYMmGsi5R8JMr8BGBUUwKezKXjm', TRUE),
     ('0f158e06-2d29-5d67-8c27-68b42ac92364',
-     'dummy.validation+instructor@example.invalid',
+     'dummy.validation+instructor@example.invalid', 'Dummy Validation Instructor',
      '$2a$10$/3YQ0.p61igqSLHJImAuk.x16nAYMmGsi5R8JMr8BGBUUwKezKXjm', TRUE),
     ('197b7a63-5541-5052-88db-7a1eb783cd44',
-     'dummy.validation+trainee@example.invalid',
+     'dummy.validation+trainee@example.invalid', 'Dummy Validation Trainee',
      '$2a$10$/3YQ0.p61igqSLHJImAuk.x16nAYMmGsi5R8JMr8BGBUUwKezKXjm', TRUE)
 ON CONFLICT (id) DO UPDATE
-SET password_hash = EXCLUDED.password_hash,
+SET name = EXCLUDED.name,
+    password_hash = EXCLUDED.password_hash,
     enabled = EXCLUDED.enabled;
 
 -- Profile entity: userId is a uuid FK by convention to users.id.

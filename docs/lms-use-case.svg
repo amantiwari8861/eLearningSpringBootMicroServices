@@ -1,0 +1,154 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1020" viewBox="0 0 1500 1020" role="img" aria-labelledby="title desc" font-family="Segoe UI, Arial, sans-serif">
+  <title id="title">LMS use-case diagram</title>
+  <desc id="desc">Trainee, instructor and admin use cases for the implemented HTTP API. A gateway actor validates Basic credentials and injects identity headers. AI and notification services have no handlers and therefore no use cases.</desc>
+  <defs>
+    <style>
+      .heading { font-size: 40px; font-weight: 700; fill: #182e3b; }
+      .subheading { font-size: 18px; fill: #47606a; }
+      .date { font-size: 16px; font-weight: 600; fill: #546771; }
+      .small { font-size: 13px; fill: #546771; }
+      .bandLabel { font-size: 13px; font-weight: 700; letter-spacing: 1.4px; fill: #47606a; }
+      .association { fill: none; stroke: #84959c; stroke-width: 1.4; opacity: 0.55; }
+      .actor { fill: none; stroke: #344f74; stroke-width: 2.4; stroke-linecap: round; }
+      .actorName { font-size: 16px; font-weight: 700; fill: #233b4b; }
+      .caseText { font-size: 15px; fill: #233b4b; }
+      .publicCase { fill: #ffffff; stroke: #344f74; stroke-width: 1.7; }
+      .traineeCase { fill: #e7f3ee; stroke: #1f7963; stroke-width: 1.7; }
+      .staffCase { fill: #eef2fa; stroke: #435d79; stroke-width: 1.7; }
+      .gatewayCase { fill: #fff4dc; stroke: #c3912d; stroke-width: 1.7; }
+    </style>
+  </defs>
+
+  <rect width="1500" height="1020" fill="#f7f8f5"/>
+  <g>
+    <text x="44" y="62" class="heading">LMS use-case diagram</text>
+    <text x="44" y="96" class="subheading">Implemented HTTP API · role-based catalogue, enrolment and progress scenarios</text>
+    <text x="1456" y="60" text-anchor="end" class="date">26 November 2026</text>
+    <text x="1456" y="86" text-anchor="end" class="small">Use cases reflect handlers that exist in code</text>
+  </g>
+
+  <!-- System boundary and scenario bands -->
+  <g id="boundary">
+    <rect x="280" y="150" width="940" height="790" rx="14" fill="#fbfcf9" stroke="#b4c5cb" stroke-width="1.6"/>
+    <text x="306" y="185" font-size="22" font-weight="700" fill="#233b4b">LMS platform · HTTP API</text>
+    <text x="1194" y="184" text-anchor="end" class="small">Gateway · auth · course · order</text>
+
+    <rect x="300" y="205" width="900" height="115" rx="8" fill="#eef4f7"/>
+    <rect x="300" y="340" width="900" height="190" rx="8" fill="#f0f7f3"/>
+    <rect x="300" y="550" width="900" height="180" rx="8" fill="#f2f5fa"/>
+    <rect x="300" y="750" width="900" height="175" rx="8" fill="#fbf6e8"/>
+
+    <text x="316" y="230" class="bandLabel">PUBLIC / SHARED</text>
+    <text x="316" y="365" class="bandLabel">TRAINEE</text>
+    <text x="316" y="575" class="bandLabel">INSTRUCTOR / ADMIN</text>
+    <text x="316" y="775" class="bandLabel">GATEWAY SUPPORT</text>
+  </g>
+
+  <!-- Associations are drawn under actors and use cases. -->
+  <g id="associations">
+    <line x1="130" y1="400" x2="345" y2="285" class="association"/>
+    <line x1="130" y1="400" x2="605" y2="285" class="association"/>
+    <line x1="130" y1="400" x2="865" y2="285" class="association"/>
+    <line x1="130" y1="400" x2="320" y2="455" class="association"/>
+    <line x1="130" y1="400" x2="550" y2="455" class="association"/>
+    <line x1="130" y1="400" x2="780" y2="455" class="association"/>
+    <line x1="130" y1="400" x2="1010" y2="455" class="association"/>
+
+    <line x1="130" y1="650" x2="605" y2="285" class="association"/>
+    <line x1="130" y1="650" x2="865" y2="285" class="association"/>
+    <line x1="130" y1="650" x2="310" y2="655" class="association"/>
+    <line x1="130" y1="650" x2="540" y2="655" class="association"/>
+    <line x1="130" y1="650" x2="770" y2="655" class="association"/>
+    <line x1="130" y1="650" x2="1010" y2="655" class="association"/>
+
+    <line x1="130" y1="860" x2="605" y2="285" class="association"/>
+    <line x1="130" y1="860" x2="865" y2="285" class="association"/>
+    <line x1="130" y1="860" x2="310" y2="655" class="association"/>
+    <line x1="130" y1="860" x2="540" y2="655" class="association"/>
+    <line x1="130" y1="860" x2="770" y2="655" class="association"/>
+    <line x1="130" y1="860" x2="1010" y2="655" class="association"/>
+
+    <line x1="1365" y1="850" x2="760" y2="850" class="association"/>
+    <line x1="1365" y1="850" x2="1120" y2="850" class="association"/>
+  </g>
+
+  <!-- Actors -->
+  <g id="actors">
+    <g>
+      <circle cx="95" cy="350" r="18" class="actor" fill="#ffffff"/>
+      <path d="M95 368V414 M72 384H118 M95 414L76 448 M95 414L114 448" class="actor"/>
+      <text x="95" y="480" text-anchor="middle" class="actorName">Trainee</text>
+      <text x="95" y="500" text-anchor="middle" class="small">Primary actor</text>
+    </g>
+    <g>
+      <circle cx="95" cy="600" r="18" class="actor" fill="#ffffff"/>
+      <path d="M95 618V664 M72 634H118 M95 664L76 698 M95 664L114 698" class="actor"/>
+      <text x="95" y="730" text-anchor="middle" class="actorName">Instructor</text>
+      <text x="95" y="750" text-anchor="middle" class="small">Primary actor</text>
+    </g>
+    <g>
+      <circle cx="95" cy="810" r="18" class="actor" fill="#ffffff"/>
+      <path d="M95 828V874 M72 844H118 M95 874L76 908 M95 874L114 908" class="actor"/>
+      <text x="95" y="940" text-anchor="middle" class="actorName">Admin</text>
+      <text x="95" y="960" text-anchor="middle" class="small">Primary actor</text>
+    </g>
+    <g>
+      <circle cx="1400" cy="810" r="18" class="actor" fill="#ffffff"/>
+      <path d="M1400 828V874 M1377 844H1423 M1400 874L1381 908 M1400 874L1419 908" class="actor"/>
+      <text x="1400" y="940" text-anchor="middle" class="actorName">API Gateway</text>
+      <text x="1400" y="960" text-anchor="middle" class="small">Secondary actor</text>
+    </g>
+  </g>
+
+  <!-- Use cases -->
+  <g id="use-cases">
+    <g>
+      <ellipse cx="470" cy="285" rx="125" ry="32" class="publicCase"/>
+      <text x="470" y="291" text-anchor="middle" class="caseText">Register account</text>
+
+      <ellipse cx="730" cy="285" rx="125" ry="32" class="publicCase"/>
+      <text x="730" y="291" text-anchor="middle" class="caseText">Log in</text>
+
+      <ellipse cx="990" cy="285" rx="125" ry="32" class="publicCase"/>
+      <text x="990" y="291" text-anchor="middle" class="caseText">Browse catalogue</text>
+    </g>
+
+    <g>
+      <ellipse cx="420" cy="455" rx="100" ry="34" class="traineeCase"/>
+      <text x="420" y="461" text-anchor="middle" class="caseText">Enrol in course</text>
+
+      <ellipse cx="650" cy="455" rx="100" ry="34" class="traineeCase"/>
+      <text x="650" y="461" text-anchor="middle" class="caseText">View my enrolments</text>
+
+      <ellipse cx="880" cy="455" rx="100" ry="34" class="traineeCase"/>
+      <text x="880" y="461" text-anchor="middle" class="caseText">Complete lesson</text>
+
+      <ellipse cx="1110" cy="455" rx="100" ry="34" class="traineeCase"/>
+      <text x="1110" y="461" text-anchor="middle" class="caseText">View course progress</text>
+    </g>
+
+    <g>
+      <ellipse cx="420" cy="655" rx="110" ry="34" class="staffCase"/>
+      <text x="420" y="661" text-anchor="middle" class="caseText">Create category</text>
+
+      <ellipse cx="650" cy="655" rx="110" ry="34" class="staffCase"/>
+      <text x="650" y="661" text-anchor="middle" class="caseText">Create course</text>
+
+      <ellipse cx="880" cy="655" rx="110" ry="34" class="staffCase"/>
+      <text x="880" y="661" text-anchor="middle" class="caseText">Add module</text>
+
+      <ellipse cx="1110" cy="655" rx="100" ry="34" class="staffCase"/>
+      <text x="1110" y="661" text-anchor="middle" class="caseText">Add lesson</text>
+    </g>
+
+    <g>
+      <ellipse cx="620" cy="850" rx="140" ry="34" class="gatewayCase"/>
+      <text x="620" y="856" text-anchor="middle" class="caseText">Validate Basic credentials</text>
+
+      <ellipse cx="980" cy="850" rx="140" ry="34" class="gatewayCase"/>
+      <text x="980" y="856" text-anchor="middle" class="caseText">Inject identity headers</text>
+    </g>
+  </g>
+
+  <text x="44" y="1002" class="small">No AI or notification use cases are shown: those modules have application entry points but no HTTP handlers.</text>
+</svg>
