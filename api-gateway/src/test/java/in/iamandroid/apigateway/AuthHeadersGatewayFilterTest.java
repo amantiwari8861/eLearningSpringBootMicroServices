@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AuthHeadersGatewayFilterTest {
@@ -57,6 +58,7 @@ class AuthHeadersGatewayFilterTest {
                 forwarded.get().getRequest().getHeaders().getFirst(AuthHeadersGatewayFilter.USER_EMAIL_HEADER));
         assertEquals("ROLE_TRAINEE",
                 forwarded.get().getRequest().getHeaders().getFirst(AuthHeadersGatewayFilter.USER_ROLES_HEADER));
+        assertNull(forwarded.get().getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION));
     }
 
     @Test
@@ -99,6 +101,7 @@ class AuthHeadersGatewayFilterTest {
         MockServerWebExchange exchange = MockServerWebExchange.from(
                 MockServerHttpRequest.post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header(HttpHeaders.AUTHORIZATION, "Basic dXNlcjpwYXNz")
                         .header(AuthHeadersGatewayFilter.USER_ID_HEADER, "spoofed")
                         .body("{}"));
         AtomicReference<ServerWebExchange> forwarded = new AtomicReference<>();
@@ -109,6 +112,7 @@ class AuthHeadersGatewayFilterTest {
         }).block();
 
         assertNull(forwarded.get().getRequest().getHeaders().getFirst(AuthHeadersGatewayFilter.USER_ID_HEADER));
+        assertNull(forwarded.get().getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION));
         assertTrue(forwarded.get().getRequest().getPath().value().equals("/api/v1/auth/register"));
     }
 
@@ -118,6 +122,7 @@ class AuthHeadersGatewayFilterTest {
         MockServerWebExchange exchange = MockServerWebExchange.from(
                 MockServerHttpRequest.post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header(HttpHeaders.AUTHORIZATION, "Basic dXNlcjpwYXNz")
                         .header(AuthHeadersGatewayFilter.USER_ID_HEADER, "spoofed")
                         .body("{}"));
         AtomicReference<ServerWebExchange> forwarded = new AtomicReference<>();
@@ -128,7 +133,107 @@ class AuthHeadersGatewayFilterTest {
         }).block();
 
         assertNull(forwarded.get().getRequest().getHeaders().getFirst(AuthHeadersGatewayFilter.USER_ID_HEADER));
+        assertNull(forwarded.get().getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION));
         assertEquals("/api/v1/auth/login", forwarded.get().getRequest().getPath().value());
+    }
+
+    @Test
+    void downstreamFailureIsNotReportedAsUnauthorized() {
+        AuthHeadersGatewayFilter filter = filterWithAuthResponse(HttpStatus.OK, identityBody(true));
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+                MockServerHttpRequest.get("/api/v1/courses")
+                        .header(HttpHeaders.AUTHORIZATION, "Basic dXNlcjpwYXNz")
+                        .build());
+
+        IllegalStateException thrown = assertThrows(IllegalStateException.class,
+                () -> filter.filter(exchange, next -> Mono.error(new IllegalStateException("upstream failure")))
+                        .block());
+
+        assertEquals("upstream failure", thrown.getMessage());
+        assertNull(exchange.getResponse().getStatusCode());
+    }
+
+    @Test
+    void protectedAuthRouteKeepsBasicCredentialsAndStripsIdentityHeaders() {
+        AuthHeadersGatewayFilter filter = filterWithAuthResponse(HttpStatus.OK, identityBody(true));
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+                MockServerHttpRequest.get("/api/v1/auth/me")
+                        .header(HttpHeaders.AUTHORIZATION, "Basic dXNlcjpwYXNz")
+                        .header(AuthHeadersGatewayFilter.USER_ID_HEADER, "spoofed")
+                        .build());
+        AtomicReference<ServerWebExchange> forwarded = new AtomicReference<>();
+
+        filter.filter(exchange, next -> {
+            forwarded.set(next);
+            return Mono.empty();
+        }).block();
+
+        assertEquals("Basic dXNlcjpwYXNz",
+                forwarded.get().getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION));
+        assertNull(forwarded.get().getRequest().getHeaders().getFirst(AuthHeadersGatewayFilter.USER_ID_HEADER));
+    }
+
+    @Test
+    void identityWithoutIdOrEmailIsRejected() {
+        AuthHeadersGatewayFilter filter = filterWithAuthResponse(HttpStatus.OK, "{\"enabled\":true}");
+        MockServerWebExchange exchange = exchangeWithBasicCredentials("/api/v1/courses");
+        AtomicBoolean chainCalled = new AtomicBoolean(false);
+
+        filter.filter(exchange, next -> {
+            chainCalled.set(true);
+            return Mono.empty();
+        }).block();
+
+        assertFalse(chainCalled.get());
+        assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
+    }
+
+    @Test
+    void disabledIdentityIsRejected() {
+        AuthHeadersGatewayFilter filter = filterWithAuthResponse(HttpStatus.OK, identityBody(false));
+        MockServerWebExchange exchange = exchangeWithBasicCredentials("/api/v1/courses");
+        AtomicBoolean chainCalled = new AtomicBoolean(false);
+
+        filter.filter(exchange, next -> {
+            chainCalled.set(true);
+            return Mono.empty();
+        }).block();
+
+        assertFalse(chainCalled.get());
+        assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
+    }
+
+    @Test
+    void emptyAuthResponseIsRejected() {
+        AuthHeadersGatewayFilter filter = filterWithAuthResponse(HttpStatus.OK, "");
+        MockServerWebExchange exchange = exchangeWithBasicCredentials("/api/v1/courses");
+        AtomicBoolean chainCalled = new AtomicBoolean(false);
+
+        filter.filter(exchange, next -> {
+            chainCalled.set(true);
+            return Mono.empty();
+        }).block();
+
+        assertFalse(chainCalled.get());
+        assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
+    }
+
+    private MockServerWebExchange exchangeWithBasicCredentials(String path) {
+        return MockServerWebExchange.from(
+                MockServerHttpRequest.get(path)
+                        .header(HttpHeaders.AUTHORIZATION, "Basic dXNlcjpwYXNz")
+                        .build());
+    }
+
+    private String identityBody(boolean enabled) {
+        return """
+                {
+                  "id": "%s",
+                  "email": "dummy.validation+trainee@example.invalid",
+                  "roles": ["ROLE_TRAINEE"],
+                  "enabled": %s
+                }
+                """.formatted(USER_ID, enabled);
     }
 
     private AuthHeadersGatewayFilter filterWithAuthResponse(HttpStatus status, String body) {

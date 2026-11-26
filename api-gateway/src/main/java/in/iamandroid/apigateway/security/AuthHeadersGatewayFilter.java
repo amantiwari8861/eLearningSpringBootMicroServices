@@ -13,6 +13,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -36,9 +37,10 @@ public class AuthHeadersGatewayFilter implements GlobalFilter, Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerWebExchange sanitizedExchange = withoutClientIdentityHeaders(exchange);
         ServerHttpRequest request = sanitizedExchange.getRequest();
+        String path = request.getPath().value();
 
-        if (isPublicPath(request.getPath().value())) {
-            return chain.filter(sanitizedExchange);
+        if (isPublicPath(path)) {
+            return chain.filter(withoutForwardedAuthorization(sanitizedExchange));
         }
 
         String authorization = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
@@ -46,14 +48,25 @@ public class AuthHeadersGatewayFilter implements GlobalFilter, Ordered {
             return unauthorized(sanitizedExchange);
         }
 
+        ServerWebExchange downstreamExchange = path.startsWith("/api/v1/auth/")
+                ? sanitizedExchange
+                : withoutForwardedAuthorization(sanitizedExchange);
+
         return authWebClient.get()
                 .uri("/api/v1/auth/me")
                 .header(HttpHeaders.AUTHORIZATION, authorization)
                 .retrieve()
                 .onStatus(status -> status.isError(), ClientResponse::createException)
                 .bodyToMono(GatewayIdentity.class)
-                .flatMap(identity -> chain.filter(withIdentityHeaders(sanitizedExchange, identity)))
-                .onErrorResume(error -> unauthorized(sanitizedExchange));
+                .map(Optional::of)
+                .defaultIfEmpty(Optional.empty())
+                .onErrorResume(error -> Mono.just(Optional.empty()))
+                .flatMap(optionalIdentity -> optionalIdentity
+                        .filter(this::isUsableIdentity)
+                        .map(identity -> path.startsWith("/api/v1/auth/")
+                                ? chain.filter(downstreamExchange)
+                                : chain.filter(withIdentityHeaders(downstreamExchange, identity)))
+                        .orElseGet(() -> unauthorized(downstreamExchange)));
     }
 
     @Override
@@ -76,6 +89,20 @@ public class AuthHeadersGatewayFilter implements GlobalFilter, Ordered {
                 })
                 .build();
         return exchange.mutate().request(request).build();
+    }
+
+    private ServerWebExchange withoutForwardedAuthorization(ServerWebExchange exchange) {
+        ServerHttpRequest request = exchange.getRequest().mutate()
+                .headers(headers -> headers.remove(HttpHeaders.AUTHORIZATION))
+                .build();
+        return exchange.mutate().request(request).build();
+    }
+
+    private boolean isUsableIdentity(GatewayIdentity identity) {
+        return identity.enabled()
+                && identity.id() != null
+                && identity.email() != null
+                && !identity.email().isBlank();
     }
 
     private ServerWebExchange withIdentityHeaders(ServerWebExchange exchange, GatewayIdentity identity) {

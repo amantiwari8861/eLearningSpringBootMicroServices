@@ -72,6 +72,10 @@ export MONGODB_URI='mongodb://127.0.0.1:27017/course_db'
 
 Every module has one JUnit Jupiter `@SpringBootTest` with an empty `contextLoads()` body. A pass confirms that the application context started with the configuration used for that run. There are no test-specific datastore fixtures or profiles in module sources. Set the local datasource and MongoDB overrides before running the full suite. Surefire writes per-module results to `<module>/target/surefire-reports/`. A package produced with `-DskipTests` does not validate startup.
 
+## Postman collection
+
+[`postman/LMS-Local.postman_collection.json`](../postman/LMS-Local.postman_collection.json) and [`postman/LMS-Local.postman_environment.json`](../postman/LMS-Local.postman_environment.json) exercise the implemented HTTP API through the gateway. Import both files, start the services listed below, and set `basicPassword` plus `newUserPassword` in the local environment; the checked-in values are empty so no credentials are stored in the repository. Requests are grouped by service and entity. The create requests write returned IDs back into environment variables, so run category → course → module → lesson before the progress requests. The AI and notification folders contain descriptions only because those modules have no application handlers. See the [architecture reference](architecture.md) for authorization rules and the exact HTTP contract.
+
 ## Start and stop
 
 Start Eureka first. Run each service in its own terminal, with the appropriate environment from above. Use `-pl` to select **one** application for the `spring-boot:run` goal. The root project itself has `pom` packaging.
